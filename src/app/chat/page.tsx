@@ -7,8 +7,9 @@ const MatchPage = () => {
   useEffect(() => {
     navigator.mediaDevices.getUserMedia({ video: true, audio: true })
       .then(stream => {
-        if (localVideo-ref.current) {
-          localVideo-ref.current.srcObject = stream;
+        // This is the corrected line
+        if (localVideoRef.current) {
+          localVideoRef.current.srcObject = stream;
         }
       })
       .catch(err => {
