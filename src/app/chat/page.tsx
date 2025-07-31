@@ -42,15 +42,18 @@ export default function ChatPage() {
                     }
                 });
 
+                // --- THIS IS THE CORRECTED PART ---
                 socket.on('offer', (data: { from: string, offer: RTCSessionDescriptionInit }) => {
+                    setStatus("Connecting to partner...");
                     pcRef.current = createPeerConnection(data.from);
-                    pcRef.current.setRemoteDescription(new RTCSession-description(data.offer))
+                    pcRef.current.setRemoteDescription(new RTCSessionDescription(data.offer))
                         .then(() => pcRef.current!.createAnswer())
                         .then(answer => pcRef.current!.setLocalDescription(answer))
                         .then(() => {
                             socket.emit('answer', { target: data.from, answer: pcRef.current!.localDescription });
                         });
                 });
+                // --- END OF CORRECTION ---
 
                 socket.on('answer', (data: { from: string, answer: RTCSessionDescriptionInit }) => {
                     pcRef.current!.setRemoteDescription(new RTCSessionDescription(data.answer));
