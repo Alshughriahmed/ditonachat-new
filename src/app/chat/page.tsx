@@ -6,42 +6,40 @@ const MatchPage = () => {
   const [isLoading, setIsLoading] = useState(true);
   const localVideoRef = useRef<HTMLVideoElement>(null);
 
+  // Effect 1: This just handles the loading screen visibility
   useEffect(() => {
-    console.log("1. useEffect for camera has started.");
+    const timer = setTimeout(() => {
+      setIsLoading(false);
+    }, 1500); // Show loading for 1.5 seconds
 
+    return () => clearTimeout(timer);
+  }, []);
+
+  // Effect 2: This runs ONLY after the loading is finished and the UI is ready
+  useEffect(() => {
     const getMedia = async () => {
-      console.log("2. getMedia function is called.");
       try {
         const stream = await navigator.mediaDevices.getUserMedia({
           video: true,
           audio: true,
         });
-
-        console.log("3. Successfully got the media stream.");
         
         if (localVideoRef.current) {
-          console.log("4. localVideoRef is available. Attaching stream.");
           localVideoRef.current.srcObject = stream;
-        } else {
-          console.error("5. ERROR: localVideoRef is NOT available.");
         }
-
       } catch (err) {
-        console.error("6. CATCH BLOCK: Error accessing media devices.", err);
+        console.error("Error accessing media devices.", err);
         alert("Could not access your camera. Please check browser permissions.");
-      } finally {
-        console.log("7. FINALLY BLOCK: Hiding loading screen.");
-        setIsLoading(false);
       }
     };
 
-    getMedia();
+    // Only run getMedia if the loading is complete
+    if (!isLoading) {
+      getMedia();
+    }
+  }, [isLoading]); // This effect depends on the 'isLoading' state
 
-    console.log("8. useEffect for camera has finished its setup.");
-  }, []);
-
-  // ... (The rest of the component remains the same)
-
+  // If loading, show the loading screen
   if (isLoading) {
     return (
       <div className="flex flex-col justify-center items-center h-screen bg-black text-white">
@@ -51,9 +49,10 @@ const MatchPage = () => {
     );
   }
 
+  // --- The rest of the JSX is the same ---
   return (
     <main className="relative w-full h-screen bg-black overflow-hidden">
-      {/* ... (The rest of the JSX is the same) ... */}
+        {/* ... (The same JSX layout as before) ... */}
     </main>
   );
 };
