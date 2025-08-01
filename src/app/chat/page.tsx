@@ -17,44 +17,40 @@ export default function ChatPage() {
   useEffect(() => {
     let cancelled = false;
 
-    const start = async () => {
+    async function start() {
       setStatus("Connecting to server...");
-      const localStream = await navigator.mediaDevices.getUserMedia({
+      const stream = await navigator.mediaDevices.getUserMedia({
         video: true,
         audio: true,
       });
       if (localVideoRef.current) {
-        localVideoRef.current.srcObject = localStream;
+        localVideoRef.current.srcObject = stream;
       }
 
       const socket = io(SIGNALING_SERVER);
       socketRef.current = socket;
 
       socket.on("connect", () => {
-        console.log("Socket connected:", socket.id);
         setStatus("Waiting for partner...");
         socket.emit("ready");
       });
 
       socket.on("partner", async (data: { isInitiator?: boolean }) => {
-        console.log("Partner event:", data);
-        setStatus("Partner found. Negotiating...");
-
+        setStatus("Negotiating...");
         const pc = new RTCPeerConnection({
           iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
         });
         pcRef.current = pc;
 
-        // إضافة المسارات المحلية
-        localStream.getTracks().forEach((t) => pc.addTrack(t, localStream));
+        // إضافة المسارات
+        stream.getTracks().forEach((t) => pc.addTrack(t, stream));
 
+        // ICE
         pc.onicecandidate = (e) => {
-          if (e.candidate) {
-            socket.emit("ice-candidate", e.candidate);
-          }
+          if (e.candidate) socket.emit("ice-candidate", e.candidate);
         };
+        // ontrack
         pc.ontrack = (e) => {
-          console.log("ontrack", e.streams);
           if (remoteVideoRef.current) {
             remoteVideoRef.current.srcObject = e.streams[0];
             setStatus("Connected");
@@ -69,9 +65,7 @@ export default function ChatPage() {
       });
 
       socket.on("offer", async (offer: RTCSessionDescriptionInit) => {
-        console.log("Received offer");
-        const localStream = (localVideoRef.current?.srcObject ||
-          null) as MediaStream;
+        setStatus("Answering...");
         const pc = new RTCPeerConnection({
           iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
         });
@@ -81,44 +75,34 @@ export default function ChatPage() {
           if (e.candidate) socket.emit("ice-candidate", e.candidate);
         };
         pc.ontrack = (e) => {
-          console.log("ontrack answer", e.streams);
           if (remoteVideoRef.current) {
             remoteVideoRef.current.srcObject = e.streams[0];
             setStatus("Connected");
           }
         };
 
-        localStream?.getTracks().forEach((t) => pc.addTrack(t, localStream));
+        stream.getTracks().forEach((t) => pc.addTrack(t, stream));
         await pc.setRemoteDescription(offer);
         const answer = await pc.createAnswer();
         await pc.setLocalDescription(answer);
         socket.emit("answer", answer);
       });
 
-      socket.on(
-        "answer",
-        async (answer: RTCSessionDescriptionInit) => {
-          console.log("Received answer");
-          if (pcRef.current) {
-            await pcRef.current.setRemoteDescription(answer);
-          }
+      socket.on("answer", async (answer: RTCSessionDescriptionInit) => {
+        if (pcRef.current) {
+          await pcRef.current.setRemoteDescription(answer);
         }
-      );
+      });
 
       socket.on(
         "ice-candidate",
         async (candidate: RTCIceCandidateInit) => {
-          console.log("Received ICE candidate");
           if (pcRef.current) {
-            try {
-              await pcRef.current.addIceCandidate(candidate);
-            } catch (err) {
-              console.error("ICE add error", err);
-            }
+            await pcRef.current.addIceCandidate(candidate);
           }
         }
       );
-    };
+    }
 
     start();
 
