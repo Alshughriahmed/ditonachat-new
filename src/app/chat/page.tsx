@@ -11,8 +11,8 @@ import React, { useEffect, useRef, useState } from 'react';
 import { io, Socket } from 'socket.io-client';
 
 /* — متغيّرات البيئة للـ WebSocket — */
-const WS_URL  = process.env.NEXT_PUBLIC_WS_URL!;   // مثلا: wss://ditonachat-backend.onrender.com
-const WS_PATH = process.env.NEXT_PUBLIC_WS_PATH!; // مثلا: /ws
+const WS_URL  = process.env.NEXT_PUBLIC_WS_URL!;
+const WS_PATH = process.env.NEXT_PUBLIC_WS_PATH!;
 
 export default function ChatPage() {
   const localVideoRef  = useRef<HTMLVideoElement | null>(null);
