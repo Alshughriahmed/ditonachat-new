@@ -15,7 +15,7 @@ export default function ChatPage() {
   const [status, setStatus] = useState("Connecting to server...");
 
   useEffect(() => {
-  console.log("🔄 ChatPage useEffect fired");
+    console.log("🔄 ChatPage useEffect fired");
     let cancelled = false;
 
     async function start() {
@@ -27,6 +27,7 @@ export default function ChatPage() {
       if (localVideoRef.current) {
         localVideoRef.current.srcObject = stream;
       }
+
       const socket = io(SIGNALING_SERVER);
       socketRef.current = socket;
 
@@ -43,14 +44,14 @@ export default function ChatPage() {
         });
         pcRef.current = pc;
 
-        // إضافة المسارات
+        // أضف مسارات الصوت+فيديو
         stream.getTracks().forEach((t) => pc.addTrack(t, stream));
 
-        // ICE
+        // إرسال ICE candidates
         pc.onicecandidate = (e) => {
           if (e.candidate) socket.emit("ice-candidate", e.candidate);
         };
-        // ontrack
+        // استقبال المسار البعيد
         pc.ontrack = (e) => {
           if (remoteVideoRef.current) {
             remoteVideoRef.current.srcObject = e.streams[0];
@@ -120,8 +121,8 @@ export default function ChatPage() {
   }, []);
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-black text-white">
-      <h1 className="mb-4 text-xl">{status}</h1>
+    <div className="flex flex-col items-center justify-center min-h-screen bg-black">
+      <h1 className="mb-4 text-xl text-white">{status}</h1>
       <div className="relative w-full max-w-4xl aspect-video">
         <video
           ref={remoteVideoRef}
