@@ -3,21 +3,15 @@
 import React, { useEffect, useRef, useState } from "react";
 import io from "socket.io-client";
 
-// عنوان خادم الإشارة
 const SIGNALING_SERVER =
   process.env.NEXT_PUBLIC_SIGNALING_URL ||
   "https://ditonachat-backend.onrender.com";
 
 export default function ChatPage() {
-  // مراجع عناصر الفيديو
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
-
-  // اتصال WebRTC و Socket.IO
   const pcRef = useRef<RTCPeerConnection | null>(null);
   const socketRef = useRef<ReturnType<typeof io> | null>(null);
-
-  // حالة الاتصال للواجهة
   const [status, setStatus] = useState("Connecting to server...");
 
   useEffect(() => {
@@ -25,7 +19,6 @@ export default function ChatPage() {
 
     const start = async () => {
       setStatus("Connecting to server...");
-      // الحصول على الوسائط المحلية
       const localStream = await navigator.mediaDevices.getUserMedia({
         video: true,
         audio: true,
@@ -34,7 +27,6 @@ export default function ChatPage() {
         localVideoRef.current.srcObject = localStream;
       }
 
-      // إنشاء اتصال Socket.IO
       const socket = io(SIGNALING_SERVER);
       socketRef.current = socket;
 
@@ -44,11 +36,10 @@ export default function ChatPage() {
         socket.emit("ready");
       });
 
-      // عند العثور على شريك
       socket.on("partner", async (data: { isInitiator?: boolean }) => {
         console.log("Partner event:", data);
         setStatus("Partner found. Negotiating...");
-        // إنشاء PeerConnection
+
         const pc = new RTCPeerConnection({
           iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
         });
@@ -57,13 +48,11 @@ export default function ChatPage() {
         // إضافة المسارات المحلية
         localStream.getTracks().forEach((t) => pc.addTrack(t, localStream));
 
-        // تجميع ICE وإرسالها
         pc.onicecandidate = (e) => {
           if (e.candidate) {
             socket.emit("ice-candidate", e.candidate);
           }
         };
-        // استقبال المسارات البعيدة
         pc.ontrack = (e) => {
           console.log("ontrack", e.streams);
           if (remoteVideoRef.current) {
@@ -72,7 +61,6 @@ export default function ChatPage() {
           }
         };
 
-        // المبادِر يرسل العرض
         if (data.isInitiator) {
           const offer = await pc.createOffer();
           await pc.setLocalDescription(offer);
@@ -80,9 +68,10 @@ export default function ChatPage() {
         }
       });
 
-      // استقبال عرض
       socket.on("offer", async (offer: RTCSessionDescriptionInit) => {
         console.log("Received offer");
+        const localStream = (localVideoRef.current?.srcObject ||
+          null) as MediaStream;
         const pc = new RTCPeerConnection({
           iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
         });
@@ -99,22 +88,23 @@ export default function ChatPage() {
           }
         };
 
-        localStream.getTracks().forEach((t) => pc.addTrack(t, localStream));
+        localStream?.getTracks().forEach((t) => pc.addTrack(t, localStream));
         await pc.setRemoteDescription(offer);
         const answer = await pc.createAnswer();
         await pc.setLocalDescription(answer);
         socket.emit("answer", answer);
       });
 
-      // استقبال إجابة
-      socket.on("answer", async (answer: RTCSessionDescriptionInit) => {
-        console.log("Received answer");
-        if (pcRef.current) {
-          await pcRef.current.setRemoteDescription(answer);
+      socket.on(
+        "answer",
+        async (answer: RTCSessionDescriptionInit) => {
+          console.log("Received answer");
+          if (pcRef.current) {
+            await pcRef.current.setRemoteDescription(answer);
+          }
         }
-      });
+      );
 
-      // استقبال ICE candidate
       socket.on(
         "ice-candidate",
         async (candidate: RTCIceCandidateInit) => {
@@ -131,11 +121,11 @@ export default function ChatPage() {
     };
 
     start();
+
     return () => {
       cancelled = true;
       pcRef.current?.close();
       socketRef.current?.disconnect();
-      // وقف مسارات الكاميرا/الميكروفون
       if (localVideoRef.current?.srcObject instanceof MediaStream) {
         (localVideoRef.current.srcObject as MediaStream)
           .getTracks()
@@ -163,4 +153,5 @@ export default function ChatPage() {
         />
       </div>
     </div>
-);
+  );
+}
