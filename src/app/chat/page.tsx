@@ -27,8 +27,6 @@ export default function ChatPage() {
       if (localVideoRef.current) {
         localVideoRef.current.srcObject = stream;
       }
-
-      const socket = io(SIGNALING_SERVER);
       const socket = io(SIGNALING_SERVER);
       socketRef.current = socket;
 
