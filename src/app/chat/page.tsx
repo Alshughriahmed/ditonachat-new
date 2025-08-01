@@ -1,10 +1,12 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
-import io from "socket.io-client";
-
-const SIGNALING_SERVER =
-  process.env.NEXT_PUBLIC_SIGNALING_URL ||
+import io, { Socket }  from "socket.io-client";
+const SIGNALING_HTTP = process.env.NEXT_PUBLIC_SIGNALING_URL!;
+const SIGNALING_WS   = process.env.NEXT_PUBLIC_WS_URL!;
+const WS_PATH        = process.env.NEXT_PUBLIC_WS_PATH!;
+                   const SIGNALING_SERVER =
+   process.env.NEXT_PUBLIC_SIGNALING_URL ||
   "https://ditonachat-backend.onrender.com";
 
 export default function ChatPage() {
@@ -28,7 +30,10 @@ export default function ChatPage() {
         localVideoRef.current.srcObject = stream;
       }
 
-      const socket = io(SIGNALING_SERVER);
+        const socket: Socket = io(SIGNALING_WS, {                    
+          path: WS_PATH,
+          transports: ["websocket"],
+        });
       socketRef.current = socket;
 
       socket.on("connect", () => {
