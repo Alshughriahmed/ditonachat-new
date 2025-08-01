@@ -13,15 +13,13 @@
 'use client';
 
 export const dynamic = 'force-dynamic';
-export const revalidate = 0;
 
 import React, { useEffect, useRef, useState } from 'react';
 import { io, Socket } from 'socket.io-client';
 
 /* — متغيّرات البيئة — */
-const WS_URL  = (process.env.NEXT_PUBLIC_WS_URL  ?? '') as string;   // مثال: wss://ditonachat-backend.onrender.com
-const WS_PATH = (process.env.NEXT_PUBLIC_WS_PATH ?? '/ws') as string; // مثال: /ws
-
+const WS_URL  = process.env.NEXT_PUBLIC_WS_URL!;
+const WS_PATH = process.env.NEXT_PUBLIC_WS_PATH!;
 /* — مكوّن الصفحة الرئيسي — */
 export default function ChatPage() {
   /* مراجع الفيديو والاتصال */
