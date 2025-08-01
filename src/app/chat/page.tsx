@@ -15,6 +15,7 @@ export default function ChatPage() {
   const [status, setStatus] = useState("Connecting to server...");
 
   useEffect(() => {
+  console.log("🔄 ChatPage useEffect fired");
     let cancelled = false;
 
     async function start() {
@@ -28,6 +29,7 @@ export default function ChatPage() {
       }
 
       const socket = io(SIGNALING_SERVER);
+      console.log("🔗 Connecting to signaling server at", SIGNALING_SERVER, " — socket id:", socket.id);
       socketRef.current = socket;
 
       socket.on("connect", () => {
