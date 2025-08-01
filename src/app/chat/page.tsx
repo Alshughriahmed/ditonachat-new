@@ -29,10 +29,11 @@ export default function ChatPage() {
       }
 
       const socket = io(SIGNALING_SERVER);
-      console.log("🔗 Connecting to signaling server at", SIGNALING_SERVER, " — socket id:", socket.id);
+      const socket = io(SIGNALING_SERVER);
       socketRef.current = socket;
 
       socket.on("connect", () => {
+        console.log("✅ Socket connected, id =", socket.id);
         setStatus("Waiting for partner...");
         socket.emit("ready");
       });
