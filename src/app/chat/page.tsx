@@ -1,27 +1,23 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
-import io, { Socket }  from "socket.io-client";
-const SIGNALING_HTTP = process.env.NEXT_PUBLIC_SIGNALING_URL!;
-const SIGNALING_WS   = process.env.NEXT_PUBLIC_WS_URL!;
-const WS_PATH        = process.env.NEXT_PUBLIC_WS_PATH!;
-                   const SIGNALING_SERVER =
-   process.env.NEXT_PUBLIC_SIGNALING_URL ||
-  "https://ditonachat-backend.onrender.com";
+import { io, Socket } from "socket.io-client";
+
+const SIGNALING_SERVER = process.env.NEXT_PUBLIC_SIGNALING_URL!;
 
 export default function ChatPage() {
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
   const pcRef = useRef<RTCPeerConnection | null>(null);
-  const socketRef = useRef<ReturnType<typeof io> | null>(null);
+  const socketRef = useRef<Socket | null>(null);
   const [status, setStatus] = useState("Connecting to server...");
 
   useEffect(() => {
-    console.log("🔄 ChatPage useEffect fired");
     let cancelled = false;
 
     async function start() {
       setStatus("Connecting to server...");
+      // 1) احصل على وسائط الكاميرا+ميكروفون
       const stream = await navigator.mediaDevices.getUserMedia({
         video: true,
         audio: true,
@@ -30,10 +26,10 @@ export default function ChatPage() {
         localVideoRef.current.srcObject = stream;
       }
 
-        const socket: Socket = io(SIGNALING_WS, {                    
-          path: WS_PATH,
-          transports: ["websocket"],
-        });
+      // 2) أصل WebSocket إلى نفس الـ SIGNALING_SERVER
+      const socket: Socket = io(SIGNALING_SERVER, {
+        transports: ["websocket"],
+      });
       socketRef.current = socket;
 
       socket.on("connect", () => {
@@ -42,6 +38,7 @@ export default function ChatPage() {
         socket.emit("ready");
       });
 
+      // 3) عند وصول “partner” تبدأ إنشاء RTCPeerConnection
       socket.on("partner", async (data: { isInitiator?: boolean }) => {
         setStatus("Negotiating...");
         const pc = new RTCPeerConnection({
@@ -49,14 +46,14 @@ export default function ChatPage() {
         });
         pcRef.current = pc;
 
-        // أضف مسارات الصوت+فيديو
+        // أضف مسارات الصوت والفيديو
         stream.getTracks().forEach((t) => pc.addTrack(t, stream));
 
-        // إرسال ICE candidates
+        // أرسل ICE للآخر
         pc.onicecandidate = (e) => {
           if (e.candidate) socket.emit("ice-candidate", e.candidate);
         };
-        // استقبال المسار البعيد
+        // استقبل المسار عن بُعد
         pc.ontrack = (e) => {
           if (remoteVideoRef.current) {
             remoteVideoRef.current.srcObject = e.streams[0];
@@ -64,6 +61,7 @@ export default function ChatPage() {
           }
         };
 
+        // لو أنت المُنشئ (initiator) ترسل offer
         if (data.isInitiator) {
           const offer = await pc.createOffer();
           await pc.setLocalDescription(offer);
@@ -71,13 +69,15 @@ export default function ChatPage() {
         }
       });
 
-      socket.on("offer", async (offer: RTCSessionDescriptionInit) => {
+      // 4) لو استقبلت عرض (offer)، تجاوب بـ answer
+      socket.on("offer", async (offer) => {
         setStatus("Answering...");
         const pc = new RTCPeerConnection({
           iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
         });
         pcRef.current = pc;
 
+        stream.getTracks().forEach((t) => pc.addTrack(t, stream));
         pc.onicecandidate = (e) => {
           if (e.candidate) socket.emit("ice-candidate", e.candidate);
         };
@@ -88,27 +88,25 @@ export default function ChatPage() {
           }
         };
 
-        stream.getTracks().forEach((t) => pc.addTrack(t, stream));
         await pc.setRemoteDescription(offer);
         const answer = await pc.createAnswer();
         await pc.setLocalDescription(answer);
         socket.emit("answer", answer);
       });
 
-      socket.on("answer", async (answer: RTCSessionDescriptionInit) => {
+      // 5) لو استلمت جواب (answer)، ضبّطه كـ remoteDescription
+      socket.on("answer", async (answer) => {
         if (pcRef.current) {
           await pcRef.current.setRemoteDescription(answer);
         }
       });
 
-      socket.on(
-        "ice-candidate",
-        async (candidate: RTCIceCandidateInit) => {
-          if (pcRef.current) {
-            await pcRef.current.addIceCandidate(candidate);
-          }
+      // 6) استقبال ICE candidates
+      socket.on("ice-candidate", async (cand) => {
+        if (pcRef.current) {
+          await pcRef.current.addIceCandidate(cand);
         }
-      );
+      });
     }
 
     start();
@@ -117,7 +115,9 @@ export default function ChatPage() {
       cancelled = true;
       pcRef.current?.close();
       socketRef.current?.disconnect();
-      if (localVideoRef.current?.srcObject instanceof MediaStream) {
+      if (
+        localVideoRef.current?.srcObject instanceof MediaStream
+      ) {
         (localVideoRef.current.srcObject as MediaStream)
           .getTracks()
           .forEach((t) => t.stop());
@@ -126,8 +126,8 @@ export default function ChatPage() {
   }, []);
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-black">
-      <h1 className="mb-4 text-xl text-white">{status}</h1>
+    <div className="flex flex-col items-center justify-center min-h-screen bg-black text-white">
+      <h1 className="mb-4 text-xl">{status}</h1>
       <div className="relative w-full max-w-4xl aspect-video">
         <video
           ref={remoteVideoRef}
