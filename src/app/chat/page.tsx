@@ -1,129 +1,68 @@
-// src/app/chat/page.tsx
 'use client';
 
-export const dynamic = 'force-dynamic';
-
 import React, { useEffect, useRef, useState } from 'react';
-import { io, Socket } from 'socket.io-client';
+import * as Ably from 'ably';
 
-const WS_URL  = process.env.NEXT_PUBLIC_WS_URL  || '';
-const WS_PATH = process.env.NEXT_PUBLIC_WS_PATH || '/ws';
+const ABLY_KEY = process.env.NEXT_PUBLIC_ABLY_KEY!;
 
 export default function ChatPage() {
-  const localVideoRef  = useRef<HTMLVideoElement | null>(null);
-  const remoteVideoRef = useRef<HTMLVideoElement | null>(null);
-  const socketRef      = useRef<Socket | null>(null);
-  const pcRef          = useRef<RTCPeerConnection | null>(null);
-  const [status, setStatus] = useState('Connecting to server…');
+  const localVideoRef  = useRef<HTMLVideoElement>(null);
+  const remoteVideoRef = useRef<HTMLVideoElement>(null);
+  const [status, setStatus] = useState('Initializing…');
+  const [messages, setMessages] = useState<string[]>([]);
+  const [input, setInput] = useState('');
 
   useEffect(() => {
-    let cancelled = false;
-    let partnerId: string;  // هنا نحفظ partnerId عند استلامه
+    let ably = new Ably.Realtime.Promise({ key: ABLY_KEY });
+    let channel = ably.channels.get('chat-demo');
 
-    async function start() {
-      setStatus('Requesting media devices…');
-      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-      if (localVideoRef.current) localVideoRef.current.srcObject = stream;
-
-      // إنشاء PeerConnection
-      const pc = new RTCPeerConnection({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] });
-      pcRef.current = pc;
-      stream.getTracks().forEach(t => pc.addTrack(t, stream));
-
-      // بثّ ICE candidates للطرف الآخر
-      pc.onicecandidate = e => {
-        if (e.candidate && socketRef.current) {
-          socketRef.current.emit('ice-candidate', {
-            target: partnerId,
-            candidate: e.candidate
-          });
-        }
-      };
-
-      pc.ontrack = e => {
-        if (remoteVideoRef.current) remoteVideoRef.current.srcObject = e.streams[0];
-        setStatus('Connected');
-      };
-
-      // اتصال Socket.io
-      setStatus('Connecting to signaling server…');
-      const socket = io(WS_URL, {
-        path: WS_PATH,
-        transports: ['websocket'],
-        secure: true,
+    setStatus('Connecting to Ably…');
+    channel.attach().then(() => {
+      setStatus('Connected to Ably, ready to chat.');
+      // استقبال الرسائل
+      channel.subscribe('chat-message', msg => {
+        setMessages(msgs => [...msgs, msg.data as string]);
       });
-      socketRef.current = socket;
-
-      socket.on('connect', () => {
-        console.log('✅ Socket connected, id =', socket.id);
-        setStatus('Waiting for partner…');
-        socket.emit('ready');
-      });
-
-      // استلام partner ويحتوي على isInitiator و partnerId
-      socket.on('partner', async (data: { isInitiator: boolean; partnerId: string }) => {
-        setStatus('Negotiating…');
-        partnerId = data.partnerId;
-
-        if (data.isInitiator) {
-          const offer = await pc.createOffer();
-          await pc.setLocalDescription(offer);
-          socket.emit('offer', { target: partnerId, offer });
-        }
-      });
-
-      // استلام offer مع from
-      socket.on('offer', async ({ from, offer }: { from: string; offer: RTCSessionDescriptionInit }) => {
-        setStatus('Answering…');
-        await pc.setRemoteDescription(offer);
-        const answer = await pc.createAnswer();
-        await pc.setLocalDescription(answer);
-        socket.emit('answer', { target: from, answer });
-      });
-
-      // استلام answer مع from
-      socket.on('answer', async ({ from, answer }: { from: string; answer: RTCSessionDescriptionInit }) => {
-        await pcRef.current?.setRemoteDescription(answer);
-      });
-
-      // استلام ICE candidate مع from
-      socket.on('ice-candidate', async ({ from, candidate }: { from: string; candidate: RTCIceCandidateInit }) => {
-        try {
-          await pcRef.current?.addIceCandidate(candidate);
-        } catch (err) {
-          console.error('Error adding remote ICE:', err);
-        }
-      });
-
-      socket.on('disconnect', reason => {
-        if (!cancelled) setStatus('Disconnected – refresh to retry');
-      });
-    }
-
-    start().catch(err => {
+    }).catch(err => {
       console.error(err);
-      setStatus('Error: ' + (err as Error).message);
+      setStatus('Error connecting to Ably');
     });
 
     return () => {
-      cancelled = true;
-      pcRef.current?.close();
-      socketRef.current?.disconnect();
+      channel.unsubscribe();
+      ably.close();
     };
   }, []);
 
+  const sendMessage = async () => {
+    if (!input.trim()) return;
+    let ably = new Ably.Realtime.Promise({ key: ABLY_KEY });
+    let channel = ably.channels.get('chat-demo');
+    await channel.publish('chat-message', input);
+    setInput('');
+  };
+
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-black text-white">
-      <h1 className="mb-4 text-xl">{status}</h1>
-      <div className="relative w-full max-w-4xl aspect-video">
-        <video ref={remoteVideoRef} autoPlay playsInline className="w-full h-full object-cover bg-gray-900" />
-        <video
-          ref={localVideoRef}
-          autoPlay
-          muted
-          playsInline
-          className="absolute bottom-2 right-2 w-40 h-28 object-cover border-2 border-white rounded"
+    <div className="p-4">
+      <h1 className="text-xl mb-4">{status}</h1>
+      <div className="border p-2 h-64 overflow-auto mb-4">
+        {messages.map((m,i) => (
+          <div key={i} className="mb-1">{m}</div>
+        ))}
+      </div>
+      <div className="flex">
+        <input
+          className="border flex-1 p-2"
+          value={input}
+          onChange={e => setInput(e.target.value)}
+          placeholder="Type your message…"
         />
+        <button
+          className="ml-2 bg-blue-500 text-white px-4"
+          onClick={sendMessage}
+        >
+          Send
+        </button>
       </div>
     </div>
   );
