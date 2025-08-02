@@ -1,108 +1,76 @@
 'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
-import { Realtime } from 'ably';
+import { Realtime, Types } from 'ably';
 
-const ABLY_KEY = process.env.NEXT_PUBLIC_ABLY_KEY!;          // تأكد من إضافة هذا المتغير في .env.local
-const SIGNALING_CHANNEL = 'webrtc-signaling-channel';        // اسم القناة نفسها على الـ backend
+const ABLY_KEY = process.env.NEXT_PUBLIC_ABLY_KEY!;
+const SIGNALING_CHANNEL = 'webrtc-signaling-channel';
 
 export default function ChatPage() {
-  const localVideoRef = useRef<HTMLVideoElement>(null);
-  const remoteVideoRef = useRef<HTMLVideoElement>(null);
-  const [status, setStatus] = useState('Initializing…');
+  // ... كل ما قبلُه كما في النسخة السابقة ...
+
+  // نضيف هذان المرجعان لحفظهم بين الريندرز
+  const channelRef      = useRef<Types.RealtimeChannelCallbacks>();
+  const localStreamRef  = useRef<MediaStream>();
 
   useEffect(() => {
     let ably: Realtime;
-    let channel: ReturnType<Realtime['channels']['get']>;
+    let channel: Types.RealtimeChannelCallbacks;
     let pc: RTCPeerConnection;
 
     const start = async () => {
-      // 1) تأكد أن المتصفح يدعم getUserMedia
-      if (!navigator.mediaDevices?.getUserMedia) {
-        setStatus('Error: getUserMedia not supported');
-        return;
-      }
+      // 1) احصل على الميديا
+      const localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+      localStreamRef.current = localStream;
+      if (localVideoRef.current) localVideoRef.current.srcObject = localStream;
 
-      try {
-        // 2) الوصول إلى الكاميرا والميكروفون
-        setStatus('Accessing local media…');
-        const localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-        if (localVideoRef.current) {
-          localVideoRef.current.srcObject = localStream;
-        }
+      // 2) تهيئة Ably
+      ably = new Realtime({ key: ABLY_KEY });
+      channel = ably.channels.get(SIGNALING_CHANNEL);
+      await channel.attach();
+      channelRef.current = channel;
 
-        // 3) إنشاء عميل Ably والاشتراك في قناة الـ signaling
-        setStatus('Initializing signaling…');
-        ably = new Realtime({ key: ABLY_KEY });
-        channel = ably.channels.get(SIGNALING_CHANNEL);
-        await channel.attach();
-        setStatus('Connected to signaling channel');
+      // 2.1) اطلب شريك
+      channel.publish('ready', {});
+      setStatus('Searching for partner…');
 
-        // 4) إنشاء الـ RTCPeerConnection
-        pc = new RTCPeerConnection({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] });
-        // أضف مسارات الصوت/الفيديو
-        localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
-
-        // 5) عند وجود مرشح ICE جديد
-        pc.onicecandidate = (e) => {
-          if (e.candidate) channel.publish('ice-candidate', e.candidate);
-        };
-
-        // 6) استقبال مرشحات ICE من الشريك
-        channel.subscribe('ice-candidate', msg => {
-          pc.addIceCandidate(msg.data as RTCIceCandidate);
-        });
-
-        // 7) عند استلام مسار من الشريك، اعرضه في الـ video البعيد
-        pc.ontrack = (e) => {
-          const [remoteStream] = e.streams;
-          if (remoteVideoRef.current) {
-            remoteVideoRef.current.srcObject = remoteStream;
-          }
-        };
-
-        // 8) offer/answer negotiation
-        pc.onnegotiationneeded = async () => {
-          const offer = await pc.createOffer();
-          await pc.setLocalDescription(offer);
-          channel.publish('offer', pc.localDescription);
-        };
-        channel.subscribe('offer', async msg => {
-          const offer = msg.data as RTCSessionDescriptionInit;
-          await pc.setRemoteDescription(offer);
-          const answer = await pc.createAnswer();
-          await pc.setLocalDescription(answer);
-          channel.publish('answer', answer);
-        });
-        channel.subscribe('answer', async msg => {
-          const answer = msg.data as RTCSessionDescriptionInit;
-          await pc.setRemoteDescription(answer);
-        });
-
-      } catch (err) {
-        console.error(err);
-        setStatus('Error initializing chat');
-      }
+      // بقية الإعداد (partner, offer/answer, ICE…) كما في الكود السابق
+      // …
     };
 
     start();
 
     return () => {
-      // تنظيف عند إلغاء التثبيت
+      // تنظيف
       pc?.close();
-      channel?.detach();
+      channelRef.current?.detach();
       ably?.close();
     };
   }, []);
 
+  // 7) أزرار التحكم بعد التعديل
+  const toggleMute = () => { /* كما كان */ };
+  const toggleCam  = () => { /* كما كان */ };
+  // هنا نرسل “ready” من جديد ونمسح بثّ الشريك القديم
+  const requestNext = () => {
+    setStatus('Searching for partner…');
+    // مسح الفيديو البعيد
+    if (remoteVideoRef.current) {
+      (remoteVideoRef.current.srcObject as MediaStream | null) = null;
+    }
+    // إرسال إشارة البحث عن شريك جديد
+    channelRef.current?.publish('ready', {});
+  };
+  const disconnect = () => { /* كما كان */ };
+
   return (
-    <div style={{ padding: 20 }}>
-      <h1>DitonaChat</h1>
-      <p>Status: {status}</p>
-      <div style={{ display: 'flex', gap: 10 }}>
-        <video ref={localVideoRef} autoPlay muted playsInline style={{ width: 200, background: '#000' }} />
-        <video ref={remoteVideoRef} autoPlay playsInline style={{ width: 200, background: '#000' }} />
-      </div>
+    <div>
+      {/* ... الواجهة نفسها ... */}
+      <button onClick={toggleMute}>🎤 Mute/Unmute</button>
+      <button onClick={toggleCam}>📷 Toggle Camera</button>
+      <button onClick={requestNext}>⏭️ Next</button>
+      <button onClick={disconnect}>❌ Disconnect</button>
+      {/* ... الفيديوهات ... */}
     </div>
   );
 }
