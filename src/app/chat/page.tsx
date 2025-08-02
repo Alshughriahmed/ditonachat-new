@@ -1,4 +1,4 @@
-// ditonachat-new/src/app/chat/page.tsx
+// ~/ditonachat-new/src/app/chat/page.tsx
 
 'use client';
 
@@ -12,41 +12,38 @@ export default function ChatPage() {
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    // إنشاء عميل Ably باستخدام المفتاح البيئي
-    const ably = new Realtime({
-      key: process.env.NEXT_PUBLIC_ABLY_KEY!,
-    });
+    // 1. إنشاء عميل Ably
+    const ably = new Realtime({ key: process.env.NEXT_PUBLIC_ABLY_KEY! });
     const channel = ably.channels.get('chat-demo');
 
+    // 2. محاولة الربط (attach) مع callback
     setStatus('Connecting to Ably…');
-    channel
-      .attach()
-      .then(() => {
-        setStatus('Connected to Ably');
-        // الاشتراك في الرسائل
-        channel.subscribe('chat-message', (msg) => {
-          setMessages((prev) => [...prev, msg.data as string]);
-        });
-      })
-      .catch((err) => {
+    channel.attach((err) => {
+      if (err) {
         console.error('Ably attach error:', err);
         setStatus('Error connecting to Ably');
+        return;
+      }
+      // عند النجاح
+      setStatus('Connected to Ably');
+      channel.subscribe('chat-message', (msg) => {
+        setMessages((prev) => [...prev, msg.data as string]);
       });
+    });
 
+    // تنظيف عند الخروج
     return () => {
       channel.detach();
       ably.close();
     };
   }, []);
 
+  // دالة إرسال الرسالة
   const sendMessage = async () => {
     if (!input.trim()) return;
 
-    const ably = new Realtime({
-      key: process.env.NEXT_PUBLIC_ABLY_KEY!,
-    });
+    const ably = new Realtime({ key: process.env.NEXT_PUBLIC_ABLY_KEY! });
     const channel = ably.channels.get('chat-demo');
-
     try {
       await channel.publish('chat-message', input);
       setInput('');
