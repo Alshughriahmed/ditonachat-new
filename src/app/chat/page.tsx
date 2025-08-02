@@ -1,88 +1,119 @@
-// ~/ditonachat-new/src/app/chat/page.tsx
-
 'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
 import { Realtime } from 'ably';
 
+const ABLY_KEY = process.env.NEXT_PUBLIC_ABLY_KEY!;
+const SIGNALING_CHANNEL = 'webrtc-signal-channel';
+
 export default function ChatPage() {
+  const localVideoRef = useRef<HTMLVideoElement>(null);
+  const remoteVideoRef = useRef<HTMLVideoElement>(null);
   const [status, setStatus] = useState('Initializing…');
-  const [messages, setMessages] = useState<string[]>([]);
-  const [input, setInput] = useState('');
-  const inputRef = useRef<HTMLInputElement>(null);
+
+  const pcRef = useRef<RTCPeerConnection>();
+  const channelRef = useRef<ReturnType<Realtime['channels']['get']>>();
+  const ablyRef = useRef<Realtime>();
 
   useEffect(() => {
-    // 1. إنشاء عميل Ably
-    const ably = new Realtime({ key: process.env.NEXT_PUBLIC_ABLY_KEY! });
-    const channel = ably.channels.get('chat-demo');
-
-    // 2. محاولة الربط (attach) مع callback
-    setStatus('Connecting to Ably…');
-    channel.attach((err) => {
-      if (err) {
-        console.error('Ably attach error:', err);
-        setStatus('Error connecting to Ably');
-        return;
+    async function start() {
+      setStatus('Accessing local media…');
+      const localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+      if (localVideoRef.current) {
+        localVideoRef.current.srcObject = localStream;
       }
-      // عند النجاح
-      setStatus('Connected to Ably');
-      channel.subscribe('chat-message', (msg) => {
-        setMessages((prev) => [...prev, msg.data as string]);
+
+      // Initialize Ably Realtime
+      const ably = new Realtime({ key: ABLY_KEY });
+      ablyRef.current = ably;
+      const channel = ably.channels.get(SIGNALING_CHANNEL);
+      channelRef.current = channel;
+      await channel.attach();
+      setStatus('Connected to signaling channel');
+
+      // Setup PeerConnection
+      const pc = new RTCPeerConnection({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] });
+      pcRef.current = pc;
+      localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
+
+      pc.onicecandidate = (event) => {
+        if (event.candidate) {
+          channel.publish('ice-candidate', event.candidate);
+        }
+      };
+
+      pc.ontrack = (event) => {
+        if (remoteVideoRef.current) {
+          remoteVideoRef.current.srcObject = event.streams[0];
+        }
+      };
+
+      // Subscribe to signaling messages
+      channel.subscribe('offer', async (msg) => {
+        setStatus('Received offer, creating answer…');
+        await pc.setRemoteDescription(msg.data);
+        const answer = await pc.createAnswer();
+        await pc.setLocalDescription(answer);
+        channel.publish('answer', answer);
       });
+
+      channel.subscribe('answer', async (msg) => {
+        setStatus('Received answer, establishing connection…');
+        await pc.setRemoteDescription(msg.data);
+      });
+
+      channel.subscribe('ice-candidate', async (msg) => {
+        try {
+          await pc.addIceCandidate(msg.data);
+        } catch (err) {
+          console.error('Error adding received ICE candidate', err);
+        }
+      });
+
+      // Create offer if none exists
+      const history = await channel.history({ limit: 1, direction: 'backwards' });
+      const last = history.items[0];
+      if (!last || last.name !== 'offer') {
+        setStatus('Creating offer…');
+        const offer = await pc.createOffer();
+        await pc.setLocalDescription(offer);
+        channel.publish('offer', offer);
+      } else {
+        setStatus('Waiting for offer…');
+      }
+    }
+
+    start().catch(err => {
+      console.error(err);
+      setStatus(`Error: ${err.message}`);
     });
 
-    // تنظيف عند الخروج
     return () => {
-      channel.detach();
-      ably.close();
+      if (pcRef.current) pcRef.current.close();
+      if (channelRef.current) channelRef.current.detach();
+      if (ablyRef.current) ablyRef.current.close();
     };
   }, []);
 
-  // دالة إرسال الرسالة
-  const sendMessage = async () => {
-    if (!input.trim()) return;
-
-    const ably = new Realtime({ key: process.env.NEXT_PUBLIC_ABLY_KEY! });
-    const channel = ably.channels.get('chat-demo');
-    try {
-      await channel.publish('chat-message', input);
-      setInput('');
-      inputRef.current?.focus();
-    } catch (err) {
-      console.error('Publish error:', err);
-    } finally {
-      ably.close();
-    }
-  };
-
   return (
-    <div className="p-4 max-w-lg mx-auto">
-      <h1 className="text-xl mb-4">{status}</h1>
-
-      <div className="border p-2 h-64 overflow-auto mb-4">
-        {messages.map((msg, i) => (
-          <div key={i} className="mb-1">
-            {msg}
-          </div>
-        ))}
-      </div>
-
-      <div className="flex">
-        <input
-          ref={inputRef}
-          className="flex-1 border p-2 rounded"
-          placeholder="Type a message…"
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && sendMessage()}
+    <main style={{ padding: '1rem' }}>
+      <h1>Video Chat</h1>
+      <p>Status: {status}</p>
+      <div style={{ display: 'flex', gap: '1rem', marginTop: '1rem' }}>
+        <video
+          ref={localVideoRef}
+          autoPlay
+          playsInline
+          muted
+          style={{ width: '45%', border: '1px solid #ccc' }}
         />
-        <button
-          onClick={sendMessage}
-          className="ml-2 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-        >
-          Send
-        </button>
+        <video
+          ref={remoteVideoRef}
+          autoPlay
+          playsInline
+          style={{ width: '45%', border: '1px solid #ccc' }}
+        />
       </div>
-    </div>
+    </main>
   );
 }
