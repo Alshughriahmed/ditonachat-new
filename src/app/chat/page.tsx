@@ -7,11 +7,14 @@ const ABLY_KEY = process.env.NEXT_PUBLIC_ABLY_KEY!;
 const SIGNALING_CHANNEL = 'webrtc-signaling-channel';
 
 export default function ChatPage() {
+  const [status, setStatus] = useState<string>('Connecting...');
   // ... كل ما قبلُه كما في النسخة السابقة ...
 
   // نضيف هذان المرجعان لحفظهم بين الريندرز
-  const channelRef      = useRef<Types.RealtimeChannelCallbacks>();
-  const localStreamRef  = useRef<MediaStream>();
+  const channelRef      = useRef<Types.RealtimeChannelCallbacks>(null);
+  const localStreamRef  = useRef<MediaStream>(null);
+  const localVideoRef   = useRef<HTMLVideoElement>(null);
+  const remoteVideoRef  = useRef<HTMLVideoElement>(null);
 
   useEffect(() => {
     let ably: Realtime;

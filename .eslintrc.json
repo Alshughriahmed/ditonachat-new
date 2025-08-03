@@ -1,19 +1,10 @@
 {
   "root": true,
-  "extends": ["next/core-web-vitals", "eslint:recommended"],
-  "parserOptions": {
-    "ecmaVersion": 2022,
-    "sourceType": "module"
-  },
-  "env": {
-    "browser": true,
-    "node": true,
-    "es6": true
-  },
+  "extends": ["next", "next/core-web-vitals", "eslint:recommended"],
+  "parserOptions": { "ecmaVersion": 2022, "sourceType": "module" },
+  "env": { "browser": true, "node": true, "es6": true },
   "rules": {
-    // هنا يمكنك إضافة أو تعديل قواعد ESLint حسب رغبتك:
-    // مثال:
-    // "no-unused-vars": ["warn", { "varsIgnorePattern": "^_" }],
-    // "react/react-in-jsx-scope": "off"
+    // هنا قواعد إضافية حسب الحاجة
   }
 }
+
