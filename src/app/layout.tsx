@@ -1,20 +1,17 @@
-import "./globals.css";
-import React from "react";
-
-export const metadata = {
-  title: "DitonaChat",
-  description: "Simple Peer-to-Peer & Ably Chat",
-};
+import "../globals.css";
+import Header from "./components/Header";
+import Footer from "./components/Footer";
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <head>
-        <meta charSet="utf-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <title>{metadata.title}</title>
-      </head>
-      <body>{children}</body>
+      <body className="flex flex-col min-h-screen">
+        <Header />
+        <main className="flex-grow container mx-auto p-4">
+          {children}
+        </main>
+        <Footer />
+      </body>
     </html>
   );
 }
