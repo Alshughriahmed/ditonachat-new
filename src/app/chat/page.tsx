@@ -31,6 +31,7 @@ function ChatPageContent() {
     let ably: Realtime;
     let channel: Types.RealtimeChannelCallbacks;
     let pc: RTCPeerConnection;
+    let joinTimeout: NodeJS.Timeout;
 
     const start = async () => {
       try {
@@ -84,8 +85,13 @@ function ChatPageContent() {
 
         pc.onconnectionstatechange = () => {
           console.debug(`🔄 Connection state: ${pc.connectionState}`);
-          if (pc.connectionState === 'failed') {
+          if (pc.connectionState === 'connected') {
+            setStatus('Connected');
+            setIsConnected(true);
+            console.debug('✅ WebRTC connection established');
+          } else if (pc.connectionState === 'failed') {
             setStatus('Connection failed - trying again...');
+            setIsConnected(false);
             console.debug('❌ Connection failed, will retry');
           }
         };
@@ -93,7 +99,11 @@ function ChatPageContent() {
         console.debug('📞 Setting up signaling handlers...');
 
         channel.subscribe('join', async (message) => {
-          console.debug('👋 Received join request, becoming answerer');
+          console.debug('👋 Received join request from peer');
+          if (joinTimeout) {
+            clearTimeout(joinTimeout);
+            console.debug('🎯 Clearing join timeout, becoming answerer');
+          }
           isInitiatorRef.current = false;
         });
 
@@ -107,7 +117,7 @@ function ChatPageContent() {
             console.debug('✅ Answer sent');
           } catch (error) {
             console.error('❌ Error handling offer:', error);
-            setStatus('Error connecting');
+            setStatus(`Error connecting: ${error instanceof Error ? error.message : 'Unknown error'}`);
           }
         });
 
@@ -115,10 +125,10 @@ function ChatPageContent() {
           try {
             console.debug('✅ Received answer, finalizing connection...');
             await pc.setRemoteDescription(message.data);
-            console.debug('✅ Connection established');
+            console.debug('✅ Answer processed, waiting for ICE connection');
           } catch (error) {
             console.error('❌ Error handling answer:', error);
-            setStatus('Error connecting');
+            setStatus(`Error connecting: ${error instanceof Error ? error.message : 'Unknown error'}`);
           }
         });
 
@@ -126,6 +136,7 @@ function ChatPageContent() {
           try {
             console.debug('🧊 Received ICE candidate');
             await pc.addIceCandidate(message.data);
+            console.debug('✅ ICE candidate added');
           } catch (error) {
             console.error('❌ Error adding ICE candidate:', error);
           }
@@ -154,9 +165,9 @@ function ChatPageContent() {
         
         await channel.publish('join', { timestamp: Date.now() });
         
-        setTimeout(async () => {
+        joinTimeout = setTimeout(async () => {
           if (!isConnected && pc.connectionState !== 'connected') {
-            console.debug('🎯 No response, becoming initiator...');
+            console.debug('🎯 No peer response after 3 seconds, becoming initiator...');
             isInitiatorRef.current = true;
             try {
               const offer = await pc.createOffer();
@@ -165,10 +176,10 @@ function ChatPageContent() {
               console.debug('📤 Offer sent as initiator');
             } catch (error) {
               console.error('❌ Error creating offer:', error);
-              setStatus('Error connecting');
+              setStatus(`Error connecting: ${error instanceof Error ? error.message : 'Unknown error'}`);
             }
           }
-        }, 2000);
+        }, 3000);
 
       } catch (error) {
         console.error('❌ Error starting chat:', error);
@@ -187,6 +198,7 @@ function ChatPageContent() {
 
     return () => {
       console.debug('🧹 Cleaning up chat session...');
+      if (joinTimeout) clearTimeout(joinTimeout);
       pcRef.current?.close();
       channelRef.current?.detach();
       ably?.close();
@@ -194,7 +206,7 @@ function ChatPageContent() {
         localStreamRef.current.getTracks().forEach(track => track.stop());
       }
     };
-  }, [SIGNALING_CHANNEL]);
+  }, [SIGNALING_CHANNEL, roomType]);
 
   const toggleMute = () => {
     if (localStreamRef.current) {
@@ -216,10 +228,12 @@ function ChatPageContent() {
     }
   };
 
-  const requestNext = () => {
+  const requestNext = async () => {
     console.debug('⏭️ Requesting next partner...');
     
-    channelRef.current?.publish('next', {});
+    if (channelRef.current) {
+      await channelRef.current.publish('next', {});
+    }
     
     setStatus('Searching for partner…');
     setIsConnected(false);
@@ -231,10 +245,57 @@ function ChatPageContent() {
     
     if (pcRef.current) {
       pcRef.current.close();
+      
+      const pc = new RTCPeerConnection({
+        iceServers: [
+          { urls: 'stun:stun.l.google.com:19302' },
+          { urls: 'stun:stun1.l.google.com:19302' }
+        ]
+      });
+      pcRef.current = pc;
+      
+      if (localStreamRef.current) {
+        localStreamRef.current.getTracks().forEach(track => {
+          pc.addTrack(track, localStreamRef.current!);
+        });
+      }
+      
+      pc.ontrack = (event) => {
+        console.debug('📺 Received remote stream');
+        if (remoteVideoRef.current && event.streams[0]) {
+          remoteVideoRef.current.srcObject = event.streams[0];
+          setStatus('Connected');
+          setIsConnected(true);
+          console.debug('✅ Remote video connected successfully');
+        }
+      };
+
+      pc.onicecandidate = (event) => {
+        if (event.candidate && channelRef.current) {
+          console.debug('🧊 Sending ICE candidate');
+          channelRef.current.publish('ice-candidate', event.candidate);
+        }
+      };
+
+      pc.onconnectionstatechange = () => {
+        console.debug(`🔄 Connection state: ${pc.connectionState}`);
+        if (pc.connectionState === 'connected') {
+          setStatus('Connected');
+          setIsConnected(true);
+          console.debug('✅ WebRTC connection established');
+        } else if (pc.connectionState === 'failed') {
+          setStatus('Connection failed - trying again...');
+          setIsConnected(false);
+          console.debug('❌ Connection failed, will retry');
+        }
+      };
     }
     
-    setTimeout(() => {
-      channelRef.current?.publish('join', { timestamp: Date.now() });
+    setTimeout(async () => {
+      if (channelRef.current) {
+        console.debug('🚪 Rejoining room after next request...');
+        await channelRef.current.publish('join', { timestamp: Date.now() });
+      }
     }, 1000);
   };
 
@@ -273,19 +334,19 @@ function ChatPageContent() {
       <div className="max-w-6xl mx-auto">
         <h1 className="text-2xl font-bold mb-6 text-center">DitonaChat - {roomType.charAt(0).toUpperCase() + roomType.slice(1)} Room</h1>
         
-        {/* Video Container */}
-        <div className="relative w-full max-w-2xl mx-auto mb-6">
-          {/* Remote Video - Main (75% width) */}
-          <div className="relative w-full aspect-video bg-gray-800 rounded-lg overflow-hidden shadow-2xl">
+        {/* Video Container - Improved Layout */}
+        <div className="video-container flex flex-col md:flex-row items-center justify-center gap-4 p-4 mb-6">
+          {/* Remote Video - Main (75% width on desktop) */}
+          <div className="relative w-full md:w-3/4 aspect-video bg-gray-800 rounded-lg overflow-hidden shadow-2xl">
             <video
               ref={remoteVideoRef}
               autoPlay
               playsInline
-              className="w-full h-full object-cover"
+              className="w-full h-full object-cover bg-black"
             />
             
             {/* Local Video - PiP Style */}
-            <div className="absolute bottom-4 right-4 w-32 h-24 bg-gray-700 rounded-lg overflow-hidden border-2 border-white shadow-lg">
+            <div className="local-pip absolute bottom-6 right-6 w-32 h-24 bg-gray-700 rounded-lg overflow-hidden border-4 border-white shadow-lg">
               <video
                 ref={localVideoRef}
                 autoPlay
@@ -300,10 +361,11 @@ function ChatPageContent() {
             
             {/* Status Badge Overlay */}
             {status !== 'Connected' && (
-              <div className="absolute inset-0 flex items-center justify-center bg-black/60 rounded-lg backdrop-blur-sm">
+              <div className="status-badge absolute inset-0 flex items-center justify-center text-white text-lg bg-black/60 rounded-lg backdrop-blur-sm">
                 <div className="text-center">
                   <div className={`inline-flex items-center px-6 py-3 rounded-full text-lg font-medium ${
                     status === 'Searching for partner…' ? 'bg-yellow-500 text-yellow-900' : 
+                    status.includes('Connecting') ? 'bg-blue-500 text-white' :
                     status.includes('Error') || status.includes('denied') || status.includes('not found') ? 'bg-red-500 text-white' :
                     'bg-blue-500 text-white'
                   } shadow-lg`}>
@@ -313,7 +375,10 @@ function ChatPageContent() {
                     {status.includes('Connecting') && (
                       <div className="animate-pulse rounded-full h-4 w-4 bg-blue-300 mr-2"></div>
                     )}
-                    {status}
+                    {status === 'Searching for partner…' ? 'Searching for partner…' 
+                      : status.includes('Connecting') ? 'Connecting…'
+                      : status.includes('Error') ? `Error: ${status.replace('Error connecting: ', '')}`
+                      : status}
                   </div>
                   {status.includes('Error') && (
                     <p className="text-white/80 text-sm mt-2 max-w-xs">
@@ -333,55 +398,55 @@ function ChatPageContent() {
           </div>
         </div>
 
-        {/* Control Buttons - Horizontal Row */}
-        <div className="flex justify-center items-center gap-3 mb-6 flex-wrap">
+        {/* Controls - Horizontal Row with Better Responsive Design */}
+        <div className="controls flex justify-center space-x-6 mt-4 mb-6">
           <button
             onClick={toggleMute}
             disabled={!hasMediaAccess}
-            className={`flex items-center justify-center w-12 h-12 sm:w-auto sm:h-auto sm:px-4 sm:py-3 rounded-full sm:rounded-lg transition-all duration-200 font-medium text-sm sm:text-base ${
+            className={`control-button flex items-center justify-center w-12 h-12 md:w-auto md:h-auto md:px-4 md:py-3 rounded-full md:rounded-lg transition-all duration-200 font-medium text-sm md:text-base ${
               !hasMediaAccess ? 'bg-gray-600 cursor-not-allowed text-gray-400' :
               isMuted ? 'bg-red-600 hover:bg-red-500 text-white shadow-lg' : 'bg-gray-700 hover:bg-gray-600 text-white shadow-md'
             }`}
             title={isMuted ? 'Unmute' : 'Mute'}
           >
-            <span className="text-lg sm:text-base">{isMuted ? '🔇' : '🎤'}</span>
-            <span className="hidden sm:inline ml-2">{isMuted ? 'Unmute' : 'Mute'}</span>
+            <span className="text-xl md:text-base">{isMuted ? '🔇' : '🎤'}</span>
+            <span className="hidden md:inline ml-2">{isMuted ? 'Unmute' : 'Mute'}</span>
           </button>
           
           <button
             onClick={toggleCam}
             disabled={!hasMediaAccess}
-            className={`flex items-center justify-center w-12 h-12 sm:w-auto sm:h-auto sm:px-4 sm:py-3 rounded-full sm:rounded-lg transition-all duration-200 font-medium text-sm sm:text-base ${
+            className={`control-button flex items-center justify-center w-12 h-12 md:w-auto md:h-auto md:px-4 md:py-3 rounded-full md:rounded-lg transition-all duration-200 font-medium text-sm md:text-base ${
               !hasMediaAccess ? 'bg-gray-600 cursor-not-allowed text-gray-400' :
               isCameraOff ? 'bg-red-600 hover:bg-red-500 text-white shadow-lg' : 'bg-gray-700 hover:bg-gray-600 text-white shadow-md'
             }`}
             title="Toggle Camera"
           >
-            <span className="text-lg sm:text-base">{isCameraOff ? '📷' : '📹'}</span>
-            <span className="hidden sm:inline ml-2">Camera</span>
+            <span className="text-xl md:text-base">{isCameraOff ? '📷' : '📹'}</span>
+            <span className="hidden md:inline ml-2">Camera</span>
           </button>
           
           <button
             onClick={requestNext}
-            disabled={!hasMediaAccess}
-            className={`flex items-center justify-center w-12 h-12 sm:w-auto sm:h-auto sm:px-6 sm:py-3 rounded-full sm:rounded-lg transition-all duration-200 font-medium text-sm sm:text-base ${
-              hasMediaAccess 
+            disabled={!hasMediaAccess || !isConnected}
+            className={`control-button flex items-center justify-center w-12 h-12 md:w-auto md:h-auto md:px-6 md:py-3 rounded-full md:rounded-lg transition-all duration-200 font-medium text-sm md:text-base ${
+              hasMediaAccess && isConnected
                 ? 'bg-blue-600 hover:bg-blue-500 text-white shadow-lg hover:shadow-xl' 
                 : 'bg-gray-600 cursor-not-allowed text-gray-400'
             }`}
             title="Next Partner"
           >
-            <span className="text-lg sm:text-base">⏭️</span>
-            <span className="hidden sm:inline ml-2">Next</span>
+            <span className="text-xl md:text-base">⏭️</span>
+            <span className="hidden md:inline ml-2">Next</span>
           </button>
           
           <button
             onClick={disconnect}
-            className="flex items-center justify-center w-12 h-12 sm:w-auto sm:h-auto sm:px-6 sm:py-3 rounded-full sm:rounded-lg transition-all duration-200 bg-red-600 hover:bg-red-500 text-white font-medium shadow-lg hover:shadow-xl text-sm sm:text-base"
+            className="control-button flex items-center justify-center w-12 h-12 md:w-auto md:h-auto md:px-6 md:py-3 rounded-full md:rounded-lg transition-all duration-200 bg-red-600 hover:bg-red-500 text-white font-medium shadow-lg hover:shadow-xl text-sm md:text-base"
             title="End Chat"
           >
-            <span className="text-lg sm:text-base">❌</span>
-            <span className="hidden sm:inline ml-2">End</span>
+            <span className="text-xl md:text-base">❌</span>
+            <span className="hidden md:inline ml-2">End</span>
           </button>
         </div>
 
