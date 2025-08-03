@@ -20,6 +20,45 @@ You can start editing the page by modifying `app/page.tsx`. The page auto-update
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
+## Payments
+
+DitonaChat uses Stripe for subscription payments. The application supports both checkout sessions (VIP page) and direct Stripe Elements integration (Upgrade page).
+
+### Environment Setup
+
+Add the following environment variables to your `.env.local` file:
+
+```bash
+NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_test_...
+STRIPE_SECRET_KEY=sk_test_...
+```
+
+### Price IDs Configuration
+
+Update the Price IDs in the following files with your actual Stripe Price IDs:
+
+- `src/app/vip/page.tsx` - Lines 7, 13, 19 (checkout sessions)
+- `src/app/api/subscribe/route.ts` - Line 42 (direct subscription)
+
+### Testing in Sandbox
+
+Use Stripe test cards for testing:
+
+- **Successful payment**: `4242424242424242`
+- **Requires authentication**: `4000002500003155`
+- **Declined payment**: `4000000000000002`
+
+**Test Flow:**
+1. Navigate to `/upgrade` for Stripe Elements integration
+2. Enter test card: `4242424242424242`, any future expiry, any CVC
+3. Click "اشترك الآن" (Subscribe Now)
+4. Verify subscription creation in Stripe Dashboard
+
+### API Endpoints
+
+- `/api/checkout` - Creates Stripe checkout sessions (used by VIP page)
+- `/api/subscribe` - Creates direct subscriptions with payment methods (used by Upgrade page)
+
 ## Learn More
 
 To learn more about Next.js, take a look at the following resources:
