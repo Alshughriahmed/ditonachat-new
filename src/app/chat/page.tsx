@@ -11,6 +11,8 @@ export default function ChatPage() {
   const router = useRouter();
   const [status, setStatus] = useState<string>('Connecting...');
   const [isConnected, setIsConnected] = useState<boolean>(false);
+  const [text, setText] = useState<string>('');
+  const [messages, setMessages] = useState<Array<{text: string, sender: 'me' | 'partner'}>>([]);
 
   // نضيف هذان المرجعان لحفظهم بين الريندرز
   const channelRef      = useRef<Types.RealtimeChannelCallbacks>(null);
@@ -85,9 +87,14 @@ export default function ChatPage() {
           // إعادة تعيين الاتصال للبحث عن شريك جديد
           setStatus('Searching for partner…');
           setIsConnected(false);
+          setMessages([]); // مسح الرسائل عند البحث عن شريك جديد
           if (remoteVideoRef.current) {
             remoteVideoRef.current.srcObject = null;
           }
+        });
+
+        channel.subscribe('text', (message) => {
+          setMessages(prev => [...prev, { text: message.data.message, sender: 'partner' }]);
         });
 
         // 2.1) اطلب شريك
@@ -148,6 +155,15 @@ export default function ChatPage() {
     channelRef.current?.publish('ready', {});
   };
 
+  const handleSendText = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!text.trim() || !channelRef.current) return;
+    
+    await channelRef.current.publish('text', { message: text });
+    setMessages(prev => [...prev, { text: text, sender: 'me' }]);
+    setText('');
+  };
+
   const disconnect = () => {
     if (pcRef.current) {
       pcRef.current.close();
@@ -161,6 +177,13 @@ export default function ChatPage() {
     
     router.push('/');
   };
+
+  useEffect(() => {
+    const container = document.getElementById('text-messages');
+    if (container) {
+      container.scrollTop = container.scrollHeight;
+    }
+  }, [messages]);
 
   return (
     <div className="min-h-screen bg-gray-900 text-white p-4">
@@ -225,7 +248,7 @@ export default function ChatPage() {
         </div>
 
         {/* أزرار Next و End */}
-        <div className="flex justify-center gap-4">
+        <div className="flex justify-center gap-4 mb-6">
           <button
             onClick={requestNext}
             disabled={!isConnected}
@@ -243,6 +266,60 @@ export default function ChatPage() {
           >
             ❌ End
           </button>
+        </div>
+
+        {/* قسم الدردشة النصية */}
+        <div className="bg-gray-800 rounded-lg p-4">
+          <h3 className="text-lg font-semibold mb-4 text-center">Text Chat</h3>
+          
+          {/* منطقة الرسائل */}
+          <div 
+            id="text-messages"
+            className="h-64 overflow-y-auto bg-gray-900 rounded-lg p-3 mb-4 space-y-2"
+          >
+            {messages.length === 0 ? (
+              <div className="text-gray-500 text-center py-8">
+                {isConnected ? 'Start a conversation...' : 'Connect with a partner to start chatting'}
+              </div>
+            ) : (
+              messages.map((msg, index) => (
+                <div
+                  key={index}
+                  className={`flex ${msg.sender === 'me' ? 'justify-end' : 'justify-start'}`}
+                >
+                  <div
+                    className={`max-w-xs px-3 py-2 rounded-lg text-sm ${
+                      msg.sender === 'me'
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-gray-700 text-gray-100'
+                    }`}
+                  >
+                    {msg.text}
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+
+          {/* نموذج إرسال الرسائل */}
+          <form onSubmit={handleSendText} className="flex gap-2">
+            <input
+              type="text"
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              placeholder="Type your message…"
+              disabled={!isConnected}
+              className="flex-1 px-3 py-2 bg-gray-700 text-white rounded-lg border border-gray-600 focus:border-blue-500 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
+              required
+            />
+            <button
+              type="submit"
+              disabled={!isConnected || !text.trim()}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              Send
+            </button>
+          </form>
         </div>
       </div>
     </div>
