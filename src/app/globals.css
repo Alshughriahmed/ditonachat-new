@@ -1,17 +1,15 @@
-/* ditonachat-new/src/app/globals.css */
+/* TESTING: should make background red */
+body { background-color: red !important; }
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
-/* أساسي: إزالة كافة توجيهات Tailwind وPostCSS */
-
-html, body {
-  margin: 0;
-  padding: 0;
-  font-family: system-ui, sans-serif;
-  background-color: #f9fafb;
-  color: #111827;
+/* بعد هذه التوجيهات يمكنك إضافة أنماطك الخاصة */
+:root {
+  --bg-dark: #000000;
+  --overlay: rgba(0,0,0,0.55);
+  --text-light: #f3f3f3;
+  --accent: #ec4899;
 }
 
-* {
-  box-sizing: border-box;
-}
-
-/* يمكنك إضافة أنماط بسيطة هنا حسب الحاجة */
+/* بقية CSS القديم هنا… */
