@@ -1,29 +1,28 @@
-// src/app/page.tsx
 "use client";
 
 import Image from "next/image";
-import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useState } from "react";
 import styles from "./page.module.css";
 
-export default function Page() {
+export default function HomePage() {
   const router = useRouter();
-  const [gender, setGender] = useState<string>("");
+  const [gender, setGender] = useState("");
   const [isAdult, setIsAdult] = useState(false);
 
   return (
-    <main className={styles.container}>
-      {/* ─── Top Overlay Bar ─────────────────────────────────────────────────── */}
-      <div className={styles.topOverlay}>
+    <main className={styles.hero}>
+      {/* ─── Top Bar: Logo +18 + Language ───────────────────────── */}
+      <div className={styles.topBar}>
         <div className={styles.logo}>
-          <Image src="/logo.png" alt="DitonaChat" width={50} height={50} />
+          <Image src="/logo.png" alt="DitonaChat" width={80} height={80} />
         </div>
-        <div className={styles.overlayRight}>
+        <div className={styles.topRight}>
           <span className={styles.ageTag}>+18</span>
           <select
             className={styles.langSelect}
             defaultValue="en"
-            onChange={(e) => console.log("switch to", e.target.value)}
+            onChange={(e) => {/* handle language change */}}
           >
             <option value="en">🇺🇸 English</option>
             <option value="ar">🇸🇦 العربية</option>
@@ -33,55 +32,44 @@ export default function Page() {
           </select>
         </div>
       </div>
-      {/* ─────────────────────────────────────────────────────────────────────── */}
 
-      {/* Background image */}
-      <div className={styles.background} />
+      {/* ─── Background overlay ───────────────────────────────────── */}
+      <div className={styles.bgOverlay} />
 
-      {/* Central form box */}
-      <div className={styles.formBox}>
-        <h1 className={styles.title}>Welcome to DitonaChat</h1>
-        <p className={styles.subtitle}>Unleash the excitement<br/>Let your wild side shine</p>
-        <h2 className={styles.mainTag}>Chat &amp; Flirt +18</h2>
+      {/* ─── Central Card ─────────────────────────────────────────── */}
+      <div className={styles.card}>
+        <h2 className={styles.subTag}>Ditona Video Chat</h2>
 
-        <div className={styles.controls}>
+        <h1 className={styles.mainTag}>Chat & Flirt +18</h1>
+        <div className={styles.form}>
           <select
-            className={styles.select}
+            className={styles.genderSelect}
             value={gender}
             onChange={(e) => setGender(e.target.value)}
           >
             <option value="">Select your gender</option>
             <option value="male">♂ Male</option>
             <option value="female">♀ Female</option>
-            <option value="paar">⚭ Paar</option>
+            <option value="paar">💑 Paar</option>
             <option value="lgbtq">🏳️‍🌈 LGBTQ+</option>
           </select>
-
-          <label className={styles.checkbox}>
+          <label className={styles.checkboxLabel}>
             <input
               type="checkbox"
+              className={styles.checkbox}
               checked={isAdult}
               onChange={(e) => setIsAdult(e.target.checked)}
             />
             I confirm I am 18 or older
           </label>
-
           <button
             className={styles.startBtn}
             disabled={!gender || !isAdult}
-            onClick={() => {
-              router.push(`/chat?type=${gender}`);
-            }}
+            onClick={() => router.push(`/chat?type=${gender}`)}
           >
             START VIDEO CHAT
           </button>
         </div>
-
-        <p className={styles.legal}>
-          By using this site, you agree to our{" "}
-          <a href="/terms">Terms of Use</a> and{" "}
-          <a href="/privacy">Privacy Policy</a>.
-        </p>
       </div>
     </main>
   );
