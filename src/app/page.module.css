@@ -1,4 +1,6 @@
-/* src/app/page.module.css */
+/* ===================================================================
+   src/app/page.module.css
+   =================================================================== */
 
 /* === Hero Section + Background === */
 .hero {
@@ -16,38 +18,37 @@
 .bgOverlay {
   position: absolute;
   inset: 0;
-  background: url("/neuefotoCover1.png") center center / cover no-repeat;
+  background: url("/NeuefotoCover1.png") center center / cover no-repeat;
   filter: brightness(0.5);
   z-index: 0;
 }
 
-/* === الهيدر (الشعار + شارة +18 + اختيار اللغة) === */
-.topBar {
+/* === شعار DitonaChat مكبَّر على اليسار === */
+.logo {
   position: absolute;
-  top: 16px;
-  left: 16px;
-  right: 16px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
+  top: 50%;
+  left: 2%;
+  transform: translateY(-50%) scale(1.25);
   z-index: 10;
 }
-
-/* الشعار */
-.logo {
-  height: 60px;        /* حجم الشعار */
+.logo img {
+  display: block;
+  height: auto;
   width: auto;
+  max-height: 80px; /* يمكنك تعديل الحجم حسب الرغبة */
 }
 
-/* المجموعة اليمنى: شارة + اختيار اللغة */
-.topRight {
+/* === شارة +18 وقائمة اللغة فقط في الزاوية اليمنى === */
+.topRightCustom {
+  position: absolute;
+  top: 2%;
+  right: 2%;
   display: flex;
   align-items: center;
-  gap: 1rem;
+  gap: 0.5rem;
+  z-index: 10;
 }
-
-/* +18 badge */
-.ageTag {
+.topRightCustom .ageTag {
   background: rgba(229, 62, 62, 0.9);
   color: #fff;
   padding: 0.25rem 0.75rem;
@@ -55,15 +56,19 @@
   font-size: 1.25rem;
   font-weight: bold;
 }
-
-/* قائمة اللغة */
-.langSelect {
+.topRightCustom .langSelect {
   background: rgba(255, 255, 255, 0.9);
   border: none;
   border-radius: 0.25rem;
   padding: 0.25rem 0.5rem;
   font-size: 0.875rem;
   cursor: pointer;
+}
+
+/* === إخفاء الهيدر والفوتر العامين === */
+.topBar,
+.footer {
+  display: none !important;
 }
 
 /* === الصندوق المركزي (الكارد) === */
@@ -84,7 +89,6 @@
   font-weight: 500;
   color: #ff4081;
   margin-bottom: 0.5rem;
-  text-align: center;
 }
 
 /* العنوان الرئيسي داخل الصندوق */
@@ -92,14 +96,6 @@
   font-size: 2rem;
   color: #ed64a6;
   margin: 0 0 1rem;
-}
-
-/* الخط الجانبي (التاغلاين) */
-.tagline {
-  font-size: 0.95rem;
-  font-style: italic;
-  color: #ddd;
-  margin-bottom: 1rem;
 }
 
 /* === نموذج الاختيارات داخل الكارد === */
@@ -117,21 +113,18 @@
   font-size: 1rem;
   cursor: pointer;
 }
-/* تلوين الخيارات */
 .genderSelect option[value="male"] {
-  color: #3182ce;  /* أزرق */
+  color: #3182ce;
 }
 .genderSelect option[value="female"] {
-  color: #e53e3e;  /* أحمر */
+  color: #e53e3e;
 }
 .genderSelect option[value="paar"] {
-  color: #e53e3e;  /* أحمر */}
-  /* نصف أزرق ونصف أحمر */
   background: linear-gradient(to right, #3182ce 50%, #e53e3e 50%);
   color: #fff;
-
+}
 .genderSelect option[value="lgbtq"] {
-  color: #33cc33; /* أخضر */
+  color: #33cc33;
 }
 
 /* مربع تأكيد العمر */
@@ -165,110 +158,19 @@
   cursor: pointer;
 }
 
-/* === الفوتر (الهامش السفلي) === */
-.footer {
-  position: absolute;
-  bottom: 16px;
-  left: 0;
-  width: 100%;
-  display: flex;
-  justify-content: center;
-  gap: 1.5rem;
-  z-index: 10;
-  font-size: 0.85rem;
-  color: #eee;
-}
-.footer a {
-  color: #ff90b0;
-  text-decoration: none;
-}
-.footer a:hover {
-  text-decoration: underline;
-}
-
 /* === استجابة الجوال === */
 @media (max-width: 480px) {
-  .topBar {
-    flex-direction: column;
-    gap: 0.5rem;
-    top: 8px;
+  .logo {
+    top: 2%;
+    left: 50%;
+    transform: translateX(-50%) scale(1.25);
+  }
+  .topRightCustom {
+    top: 2%;
+    right: 2%;
+    gap: 0.25rem;
   }
   .mainTag {
     font-size: 1.5rem;
   }
-  .logo {
-    height: 48px;
-  }
-}
-/* ——— TopBar (Header) ——— */
-.topBar {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 60px;
-  background: rgba(0, 0, 0, 0.7);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0 1rem;
-  z-index: 20;
-}
-
-/* الشعار */
-.logo img {
-  height: 40px;
-}
-
-/* روابط التنقل في الهيدر */
-.topRight {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-}
-
-.navBtn {
-  color: #fff;
-  text-decoration: none;
-  padding: 0.5rem 0.75rem;
-  border-radius: 0.25rem;
-  transition: background 0.2s;
-}
-.navBtn:hover {
-  background: rgba(255, 255, 255, 0.1);
-}
-
-/* زر اللغة */
-.langSelect {
-  background: rgba(255,255,255,0.9);
-  border: none;
-  border-radius: 0.25rem;
-  padding: 0.25rem 0.5rem;
-  font-size: 0.875rem;
-}
-
-/* ——— Footer ——— */
-.footer {
-  background: rgba(0, 0, 0, 0.7);
-  padding: 1rem 0;
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  z-index: 20;
-}
-
-.footerNav {
-  display: flex;
-  justify-content: center;
-  flex-wrap: wrap;
-  gap: 0.5rem 1rem;
-}
-
-.footerNav .navBtn {
-  color: #ddd;
-}
-.footerNav .navBtn:hover {
-  color: #fff;
-  text-decoration: underline;
 }
