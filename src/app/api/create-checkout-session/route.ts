@@ -16,13 +16,13 @@ export async function POST() {
             product_data: {
               name: 'Boost Me – 60 Minutes',
             },
-            unit_amount: 199, // 1.99 USD in cents
+            unit_amount: 199, // 1.49 USD in cents
           },
           quantity: 1,
         },
       ],
       mode: 'payment',
-      success_url: `${process.env.NEXT_PUBLIC_BASE_URL}/chat?boost=success`,
+      success_url: `${process.env.NEXT_PUBLIC_BACKEND_URL}/chat?boost=success`,
       cancel_url: `${process.env.NEXT_PUBLIC_BASE_URL}/chat`,
     });
 
@@ -30,7 +30,7 @@ export async function POST() {
   } catch (error) {
     console.error('Stripe session error:', error);
     return NextResponse.json(
-      { error: 'Stripe session creation failed.' },
+      { error: 'Stripe session creation failed.', details: error },
       { status: 500 }
     );
   }

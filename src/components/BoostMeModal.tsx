@@ -5,7 +5,9 @@ import { useRouter } from 'next/navigation';
 import { loadStripe } from '@stripe/stripe-js';
 import { useUser } from '@/context/UserContext';
 
-const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!);
+const stripePromise = loadStripe(
+  process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY as string
+);
 
 const BoostMeModal: React.FC = () => {
   const router = useRouter();
@@ -38,7 +40,7 @@ const BoostMeModal: React.FC = () => {
     }
   }, [router, setUserPreferences]);
 
-  const handleBoostPurchase = async () => {
+  const handleBoostPurchase = async (): Promise<void> => {
     setLoading(true);
     setError(null);
     try {
@@ -53,8 +55,9 @@ const BoostMeModal: React.FC = () => {
       const { sessionId } = await res.json();
       const stripe = await stripePromise;
       await stripe?.redirectToCheckout({ sessionId });
-    } catch (err: any) {
-      setError(err.message || 'Payment error. Try again.');
+    } catch (err) {
+      const error = err as Error;
+      setError(error.message || 'Payment error. Try again.');
       setLoading(false);
     }
   };
@@ -72,7 +75,7 @@ const BoostMeModal: React.FC = () => {
         <button
           onClick={handleBoostPurchase}
           disabled={loading}
-          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded w-full mb-2"
+          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded"
         >
           {loading ? 'Processing...' : 'Pay Now'}
         </button>
