@@ -1,90 +1,52 @@
-// File: src/hooks/useSmartJoin.ts
-'use client';
+// src/hooks/useSmartJoin.ts
 
-import { useEffect } from 'react';
-import WebRTCManager from '@/utils/webrtc';
-import socket from '@/utils/socket';
-import { useUser } from '@/context/UserContext';
-import { Gender } from '@/utils/matching'; // Assuming Gender is exported from here
+import { useEffect, useState } from "react";
+import { useUser } from "@/context/UserContext";
+import { Gender } from "@/types/Gender";
+import { matchUsers, UserPreferences } from "@/utils/matching";
 
-type SmartJoinOptions = {
-  manager: WebRTCManager;
-  onRemoteStream: (stream: MediaStream) => void;
-  onCandidate: (candidate: RTCIceCandidateInit) => void;
-  setRemotePeerId: (id: string | null) => void;
-};
+// 🧠 خطاف الانضمام الذكي للطابور
+export const useSmartJoin = () => {
+  const { user } = useUser();
+  const [preferences, setPreferences] = useState<UserPreferences | null>(null);
 
-export default function useSmartJoin({
-  manager,
-  onRemoteStream,
-  onCandidate,
-  setRemotePeerId,
-}: SmartJoinOptions) {
-  const { userPreferences } = useUser();
-
+  // ⚙️ تحديد التفضيلات بناءً على حالة المستخدم
   useEffect(() => {
-    if (!manager || !userPreferences) return;
+    // لا تفعل شيئاً إذا لم يتم تحميل بيانات المستخدم بعد
+    if (!user) {
+      setPreferences(null);
+      return;
+    }
 
-    // ✅ الاتصال بالسيرفر
-    socket.connect();
+    // تحقق مما إذا كان المستخدم مشتركاً
+    const isSubscriber = user.subscriptionStatus !== "FREE";
 
-    // ✅ إرسال تفضيلات المستخدم
-    socket.emit('join', {
-      gender: userPreferences.gender as Gender[], // Ensure userPreferences.gender is Gender[]
-      countries: userPreferences.countries,
-      isVip: userPreferences.isVip,
-    });
-
-    // ✅ عند حدوث مطابقة
-    socket.on('match', async ({ userId }: { userId: string }) => {
-      setRemotePeerId(userId);
-      try {
-        // sendOffer expects: to, onTrack, onIceCandidate
-        await manager.sendOffer(userId, onRemoteStream, onCandidate);
-      } catch (error) {
-        console.error('❌ Failed to send offer:', error);
-      }
-    });
-
-    // ✅ استقبال عرض
-    socket.on('offer', async ({ from, offer }) => {
-      setRemotePeerId(from);
-      try {
-        // handleOffer expects: data (SignalingPayload), localStream, onTrack, onIceCandidate
-        await manager.handleOffer(
-          { from, offer }, // data: SignalingPayload
-          manager.getLocalStream()!, // localStream
-          onRemoteStream, // onTrack
-          onCandidate // onIceCandidate
-        );
-      } catch (error) {
-        console.error('❌ Failed to handle offer:', error);
-      }
-    });
-
-    // ✅ استقبال جواب
-    socket.on('answer', ({ from, answer }) => {
-      // handleAnswer expects: data (SignalingPayload)
-      manager.handleAnswer({ from, answer });
-    });
-
-    // ✅ استقبال مرشح ICE
-    socket.on('candidate', ({ from, candidate }) => {
-      // handleCandidate expects: data (SignalingPayload)
-      manager.handleCandidate({ from, candidate });
-    });
-
-    // ✅ مغادرة الطرف الآخر
-    socket.on('leave', () => {
-      manager.closeConnection();
-      setRemotePeerId(null);
-    });
-
-    // 🧼 تنظيف عند تفكيك الكمبوننت
-    return () => {
-      socket.disconnect();
-      manager.closeConnection();
-      setRemotePeerId(null);
+    // تحديد التفضيلات بناءً على حالة الاشتراك
+    const computedPreferences: UserPreferences = {
+      gender: isSubscriber ? user.gender : Gender.ANY, // المشترك يختار الجنس، الزائر يتطابق مع أي جنس
+      country: isSubscriber ? user.country : user.country, // المشترك يختار الدولة، الزائر يطابق في دولته فقط
     };
-  }, [manager, userPreferences, onRemoteStream, onCandidate, setRemotePeerId]);
-}
+
+    setPreferences(computedPreferences);
+  }, [user]);
+
+  // 🚀 دالة الانضمام إلى طابور المطابقة
+  // في هذه المرحلة، هذه الدالة ستقوم بمحاكاة المطابقة.
+  // لاحقاً، سيتم استبدالها باستدعاء API.
+  const joinQueue = (potentialPartner: UserPreferences): boolean => {
+    if (!preferences) {
+      console.warn("User preferences not available yet.");
+      return false;
+    }
+
+    // استخدام دالة المطابقة التي أنشأناها
+    const matched = matchUsers(preferences, potentialPartner);
+    console.log("Matching result:", matched);
+    return matched;
+  };
+
+  return {
+    preferences,
+    joinQueue,
+  };
+};

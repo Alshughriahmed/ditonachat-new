@@ -1,93 +1,71 @@
 // src/context/UserContext.tsx
 
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+"use client";
 
-// تم تعديل تعريف أنواع البيانات هنا
-// Gender يجب أن يكون نوعًا مفردًا
-export type Gender = 'male' | 'female' | 'couple' | 'other';
-export type Country = string;
+import {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  ReactNode,
+} from "react";
+import { Gender } from "@/types/Gender";
 
-export interface UserPreferences {
-  isVip: boolean;
-  isBoosted: boolean;
-  // تم تعديل هذا ليصبح مصفوفة من النوع المفرد
-  gender: Gender[];
-  // تم تعديل هذا ليصبح مصفوفة من النصوص
-  countries: Country[];
-  boostExpiry?: number;
+// واجهة User لتحديد خصائص المستخدم
+interface User {
+  id: string;
+  email?: string;
+  displayName?: string;
+  profileMessage?: string;
+  gender: Gender;
+  country?: string;
+  subscriptionStatus: "FREE" | "BOOST" | "WEEKLY" | "YEARLY";
+  subscriptionExpiresAt?: string | Date;
+  socialLinks?: {
+    instagram?: string;
+    facebook?: string;
+    snapchat?: string;
+  };
 }
 
+// واجهة للسياق
 interface UserContextType {
-  userPreferences: UserPreferences;
-  setUserPreferences: (preferences: Partial<UserPreferences>) => void;
-  checkBoostExpiry: () => void;
+  user: User | null;
+  setUser: (user: User | null) => void;
 }
 
+// إنشاء السياق
 const UserContext = createContext<UserContextType | undefined>(undefined);
 
-const getInitialPreferences = (): UserPreferences => {
-  if (typeof window !== 'undefined') {
-    const storedPreferences = localStorage.getItem('userPreferences');
-    if (storedPreferences) {
-      return JSON.parse(storedPreferences);
-    }
-  }
-  return {
-    isVip: false,
-    isBoosted: false,
-    gender: [],
-    countries: [],
-  };
-};
+// مزود السياق
+export function UserProvider({ children }: { children: ReactNode }) {
+  const [user, setUser] = useState<User | null>(null);
 
-export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [userPreferences, setUserPreferencesState] = useState<UserPreferences>(getInitialPreferences);
-
-  const checkBoostExpiry = () => {
-    setUserPreferencesState(prevPreferences => {
-      if (prevPreferences.isBoosted && prevPreferences.boostExpiry) {
-        if (Date.now() > prevPreferences.boostExpiry) {
-          return { ...prevPreferences, isBoosted: false, boostExpiry: undefined };
-        }
-      }
-      return prevPreferences;
-    });
-  };
-
-  const setUserPreferences = (preferences: Partial<UserPreferences>) => {
-    setUserPreferencesState(prevPreferences => {
-      const newPreferences = { ...prevPreferences, ...preferences };
-
-      if (preferences.isBoosted && !prevPreferences.isBoosted) {
-        newPreferences.boostExpiry = Date.now() + 60 * 60 * 1000; // 60 دقيقة
-      }
-
-      // Save to localStorage
-      localStorage.setItem('userPreferences', JSON.stringify(newPreferences));
-
-      return newPreferences;
-    });
-  };
-
+  // useEffect لتحميل حالة المستخدم من الذاكرة المحلية عند بداية التطبيق
   useEffect(() => {
-    const intervalId = setInterval(checkBoostExpiry, 60 * 1000); // Check every minute
+    // هذه الخطوة اختيارية، لكنها مفيدة لمزامنة المستخدم
+    const storedUser = localStorage.getItem("user");
+    if (storedUser) {
+      try {
+        setUser(JSON.parse(storedUser));
+      } catch (e) {
+        console.error("Failed to parse user data from localStorage", e);
+      }
+    }
+  }, []);
 
-    return () => clearInterval(intervalId);
-  }, []); // التبعيات فارغة لأن checkBoostExpiry لا تعتمد على userPreferences
+  return (
+    <UserContext.Provider value={{ user, setUser }}>
+      {children}
+    </UserContext.Provider>
+  );
+}
 
-  const value = {
-    userPreferences,
-    setUserPreferences,
-    checkBoostExpiry,
-  };
-
-  return <UserContext.Provider value={value}>{children}</UserContext.Provider>;
-};
-
-export const useUser = () => {
+// خطاف للوصول إلى السياق
+export function useUser() {
   const context = useContext(UserContext);
-  if (context === undefined) {
-    throw new Error('useUser must be used within a UserProvider');
+  if (!context) {
+    throw new Error("useUser must be used within a UserProvider");
   }
   return context;
-};
+}
