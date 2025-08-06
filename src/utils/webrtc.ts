@@ -185,8 +185,7 @@ export class WebRTCManager {
     }
 
     this.socket.emit('leave');
-   }
-
   }
+} // ← إغلاق كلاس WebRTCManager هنا
+
 export default WebRTCManager;
-}
