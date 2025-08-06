@@ -7,7 +7,7 @@ import { authOptions } from "@/lib/authOptions"; // تأكد من أن المس�
 
 // قم بإنشاء كائن Stripe باستخدام مفتاحك السري
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string, {
-  apiVersion: '2024-06-20', // استخدم أحدث إصدار من Stripe
+  apiVersion: '2025-07-30.basil', // استخدم أحدث إصدار من Stripe
 });
 
 export async function POST(req: NextRequest) {
