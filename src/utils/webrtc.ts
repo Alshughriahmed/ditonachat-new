@@ -61,7 +61,7 @@ export class WebRTCManager {
   getRemoteStream(): MediaStream | null {
     return this.remoteStream;
   }
-
+}
   /**
    * Initializes local media stream (camera + mic)
    */
