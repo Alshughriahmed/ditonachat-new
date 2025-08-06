@@ -1,5 +1,6 @@
 // src/app/layout.tsx
 import './globals.css'
+import { UserProvider } from '@/context/UserContext'; // تأكد أن المسار صحيح حسب مشروعك
 import styles from './page.module.css'
 import Link from 'next/link'
 
