@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useEffect, useRef, useState, useCallback } from 'react';
@@ -76,7 +77,7 @@ export default function ChatPage() {
       channelRef.current = ablyRef.current.channels.get(SIGNALING_CHANNEL);
       await channelRef.current.attach();
 
-      pcRef.current = new RTCPeerConnection({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] });
+      pcRef.current = new RTCPeerConnection({ iceServers: [{ urls: ['stun:stun.l.google.com:19302'] }] });
       pcRef.current.onicecandidate = e => {
         if (e.candidate) channelRef.current?.publish('ice-candidate', e.candidate);
       };
@@ -150,11 +151,10 @@ export default function ChatPage() {
       <video ref={remoteVideoRef} autoPlay playsInline className="absolute inset-0 w-full h-full object-cover" />
 
       <motion.div
-        ref={selfPreviewRef}
-        drag
-        dragMomentum={false}
-        whileDrag={{ scale: 1.1 }}
-        className="absolute w-36 h-36 bottom-6 right-6 rounded-full overflow-hidden border-4 border-blue-500 shadow-[0_0_20px_rgba(59,130,246,0.5)] z-20 touch-none"
+        className="absolute top-4 right-4 z-30 w-36 h-36 rounded-full overflow-hidden
+                   border-4 border-pink-500 shadow-lg"
+        drag dragMomentum={false}
+        style={{ touchAction: 'none' }}
       >
         <video ref={localVideoRef} autoPlay muted playsInline className="w-full h-full object-cover" />
         {cameras.length > 1 && (
@@ -166,36 +166,30 @@ export default function ChatPage() {
 
       {isChatOpen && (
         <motion.div
-          className="absolute top-6 left-6 w-80 h-[70%] bg-black bg-opacity-70 backdrop-blur-sm rounded-lg p-4 flex flex-col z-20"
-          initial={{ x: -200, opacity: 0 }} animate={{ x: 0, opacity: 1 }}
+          className="absolute top-20 left-4 z-20 w-80 max-h-96 overflow-y-auto
+               bg-black bg-opacity-70 backdrop-blur-sm p-4 rounded-lg"
+          initial={{ opacity: 0, x: -100 }}
+          animate={{ opacity: 1, x: 0 }}
+          exit={{ opacity: 0, x: -100 }}
         >
-          <div className="flex-1 overflow-y-auto space-y-2 mb-4">
-            {/* مثال للرسائل */}
-            <div className="self-start bg-gray-700 bg-opacity-30 text-gray-100 px-3 py-2 rounded-lg max-w-[80%] font-medium">
-              رسالة من الطرف الآخر
-            </div>
-            <div className="self-end bg-blue-500 bg-opacity-30 text-blue-100 px-3 py-2 rounded-lg max-w-[80%] font-medium">
-              رسالتي أنا
-            </div>
-          </div>
-          <div className="flex">
-            <input type="text" placeholder="أكتب رسالة…" className="flex-1 p-2 rounded-l-lg focus:outline-none bg-white bg-opacity-10 text-white" />
-            <button className="px-4 bg-blue-500 rounded-r-lg font-semibold">إرسال</button>
-            <button onClick={()=>setIsChatOpen(false)} className="ml-2 text-white">✕</button>
-          </div>
+          {/* محتوى الدردشة هنا */}
+          <p className="text-white">محتوى الدردشة هنا</p>
         </motion.div>
       )}
 
-      <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 z-20">
-        <div className="bg-black bg-opacity-70 backdrop-blur-sm rounded-full px-6 py-3 flex items-center space-x-4">
-          <button onClick={handlePrev} className="text-2xl bg-blue-500 p-3 rounded-full">⏮️</button>
-          <button onClick={toggleCameraDevice} className="text-2xl bg-blue-500 p-3 rounded-full">📷</button>
-          <button onClick={toggleMute} className="text-2xl bg-blue-500 p-3 rounded-full">{isMuted ? '🔇' : '🎤'}</button>
-          <button onClick={() => setIsChatOpen(o => !o)} className="text-2xl bg-blue-500 p-3 rounded-full">💬</button>
-          <button onClick={handleDisconnect} className="text-2xl bg-red-500 p-3 rounded-full">⏹️</button>
-          <button onClick={handleNext} className="text-2xl bg-blue-500 p-3 rounded-full">⏭️</button>
-        </div>
+      <div
+        className="absolute bottom-4 left-1/2 z-20 flex space-x-4
+                   bg-black bg-opacity-60 backdrop-blur-md p-2 rounded-full
+                   transform -translate-x-1/2"
+      >
+        <button onClick={handlePrev}>⏮️</button>
+        <button onClick={toggleCameraDevice}>🔄</button>
+        <button onClick={toggleMute}>{isMuted ? '🔇' : '🎤'}</button>
+        <button onClick={handleDisconnect}>⏹️</button>
+        <button onClick={handleNext}>⏭️</button>
       </div>
     </main>
   );
 }
+
+
