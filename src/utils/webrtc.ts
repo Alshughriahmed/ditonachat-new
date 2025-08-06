@@ -1,21 +1,20 @@
-// File: src/utils/webrtc.ts
-
+// src/utils/webrtc.ts
 import { Socket } from 'socket.io-client';
 
 const ICE_SERVERS: RTCConfiguration = {
   iceServers: [
-    { urls: 'stun:stun.l.google.com:19302' },
-    { urls: 'stun:stun1.l.google.com:19302' },
+    { urls: 'stun:stun1.google.com:19302' },
+    { urls: 'stun:stun2.google.com:19302' },
     // TURN server (production): Add your TURN credentials here
-    // { urls: 'turn:your.turn.server:3478', username: 'user', credential: 'pass' },
+    // { urls: 'turn:your.turn.server:3478', username: 'user', credential: 'password' },
   ],
 };
 
 export interface SignalingPayload {
-  to?: string; // Make 'to' optional for incoming signals where 'from' is used
+  to: string; // Make 'to' optional for incoming signals where 'from' is used
   from?: string; // Add 'from' for incoming signals
-  offer?: RTCSessionDescriptionInit;
   answer?: RTCSessionDescriptionInit;
+  offer?: RTCSessionDescriptionInit;
   candidate?: RTCIceCandidateInit;
 }
 
@@ -32,10 +31,16 @@ export class WebRTCManager {
     this.socket = socket;
   }
 
-  getLocalStream(): MediaStream | null {
-    return this.localStream;
+  // ضع الدالة setLocalStream هنا (خارج الـ constructor)
+  setLocalStream(stream: MediaStream) {
+    this.localStream = stream;
   }
 
+  // هذه الدالة صحيحة في مكانها
+  getLocalStream() {
+    return this.localStream;
+  }
+}
   getRemoteStream(): MediaStream | null {
     return this.remoteStream;
   }
