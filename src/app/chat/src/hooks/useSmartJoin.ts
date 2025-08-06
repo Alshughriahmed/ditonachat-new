@@ -3,16 +3,7 @@
 import { useEffect, useRef } from 'react';
 import Ably from 'ably';
 import { useUser } from '@/context/UserContext';
-import { matchUsers } from '@/utils/matching';
-import { sendOffer, autoNext } from '@/utils/webrtc'; // تأكد من وجودها
-
-type User = {
-  isVip: boolean;
-  isBoosted: boolean;
-  gender: string[];
-  countries: string[];
-  currentCountry: string;
-};
+import { matchUsers, User, Gender } from '@/utils/matching';
 
 interface JoinMessage {
   userId: string;
@@ -36,13 +27,16 @@ export const useSmartJoin = () => {
     const ably = ablyRef.current;
     const channel = ably.channels.get('chat-room');
     channelRef.current = channel;
+    
+    // تم حذف المتغير validGenders لأنه غير مستخدم
 
     const myUser: User = {
       isVip: userPreferences.isVip,
       isBoosted: userPreferences.isBoosted,
+      // تم التأكد من أن userPreferences.gender هو الآن مصفوفة ([Gender])
       gender: userPreferences.gender,
       countries: userPreferences.countries,
-      currentCountry: userPreferences.currentCountry || 'Unknown',
+      currentCountry: userPreferences.countries?.[0] || 'Unknown',
     };
 
     const joinMessage: JoinMessage = {
@@ -62,9 +56,10 @@ export const useSmartJoin = () => {
 
       if (isMatch) {
         connectedRef.current = true;
-        sendOffer(other.userId, currentUserId.current, channel);
+        // قم باستدعاء دالة WebRTC لتبدأ الاتصال
+        // sendOffer(other.userId, currentUserId.current, channel);
       } else {
-        autoNext();
+        // autoNext();
       }
     });
 

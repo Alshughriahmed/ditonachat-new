@@ -25,6 +25,7 @@ export default function ChatPage() {
   const [inputText, setInputText] = useState('');
   const [webrtc, setWebrtc] = useState<WebRTCManager | null>(null);
   const [remotePeerId, setRemotePeerId] = useState<string | null>(null);
+
   const [userInfo] = useState<UserInfo>({
     country: 'السعودية',
     city: 'جدة',
@@ -52,13 +53,14 @@ export default function ChatPage() {
 
         setRemotePeerId('REMOTE_PEER_ID');
 
-        manager.sendOffer('REMOTE_PEER_ID', stream,
-          remoteStream => {
-            if (remoteVideoRef.current) {
+        manager.sendOffer(
+          'REMOTE_PEER_ID',
+          (remoteStream: MediaStream) => {
+            if (remoteVideoRef.current && remoteStream instanceof MediaStream) {
               remoteVideoRef.current.srcObject = remoteStream;
             }
           },
-          candidate => {
+          (candidate: RTCIceCandidateInit) => {
             if (remotePeerId) {
               manager.sendCandidate(remotePeerId, candidate);
             }
@@ -71,12 +73,12 @@ export default function ChatPage() {
       manager.handleOffer(
         data,
         manager.getLocalStream()!,
-        remoteStream => {
+        (remoteStream: MediaStream) => {
           if (remoteVideoRef.current) {
             remoteVideoRef.current.srcObject = remoteStream;
           }
         },
-        candidate => {
+        (candidate: RTCIceCandidateInit) => {
           manager.sendCandidate(data.to, candidate);
         }
       );
@@ -86,22 +88,23 @@ export default function ChatPage() {
     socket.on('candidate', data => manager.handleCandidate(data));
 
     socket.on('leave', () => {
-      manager.closeConnection();
+      manager.closeConnection?.();
       setRemotePeerId(null);
       setTimeout(() => setRemotePeerId('NEW_PEER_ID'), 1000);
     });
 
     return () => {
-      manager.closeConnection();
+      manager.closeConnection?.();
       socket.disconnect();
     };
-  }, []);
+  }, [remotePeerId]);
 
   const bindGestures = useGesture({
     onDrag: ({ swipe }) => {
-      if (swipe[0] === 1) webrtc?.closeConnection();
-      if (swipe[0] === -1) webrtc?.closeConnection();
-    }
+      if (swipe[0] === 1 || swipe[0] === -1) {
+        webrtc?.closeConnection?.();
+      }
+    },
   });
 
   const handleSendMessage = () => {
@@ -114,12 +117,12 @@ export default function ChatPage() {
     }
   };
 
-  const handlePrevious = () => webrtc?.closeConnection();
-  const handleNext = () => webrtc?.closeConnection();
+  const handlePrevious = () => webrtc?.closeConnection?.();
+  const handleNext = () => webrtc?.closeConnection?.();
   const handleToggleCamera = () => console.log('📷 Toggle camera');
   const handleToggleMute = () => console.log('🎤 Toggle mute');
   const handleSettings = () => console.log('⚙️ Settings');
-  const handleEndChat = () => webrtc?.closeConnection();
+  const handleEndChat = () => webrtc?.closeConnection?.();
 
   return (
     <main className="relative w-full h-screen bg-black overflow-hidden" {...bindGestures()}>
@@ -130,17 +133,12 @@ export default function ChatPage() {
         className="absolute inset-0 w-full h-full object-cover"
       />
 
-      {/* المعاينة الذاتية */}
+      {/* ✅ المعاينة الذاتية */}
       <motion.div
         className="w-[150px] h-[150px] rounded-full border-[3px] border-blue-500 shadow-[0_0_10px_rgba(59,130,246,0.5)] overflow-hidden absolute bottom-5 right-5 z-50"
+        style={{ x, y, scale }}
         drag
         dragMomentum={false}
-        style={{ x, y, scale }}
-        {...useGesture({
-          onPinch: ({ offset: [s] }) => {
-            scale.set(Math.max(0.5, Math.min(s, 2)));
-          },
-        })()}
       >
         <video
           ref={localVideoRef}
@@ -150,27 +148,16 @@ export default function ChatPage() {
         />
       </motion.div>
 
-      {/* معلومات الطرف الآخر */}
-      <div className="absolute top-5 left-5 bg-[rgba(0,0,0,0.6)] backdrop-blur-sm p-3 rounded-lg text-white text-sm flex flex-col gap-1 z-50">
-        <div className="flex items-center gap-2">
-          <span>🌍 {userInfo.country} - {userInfo.city}</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <span>{userInfo.gender === 'male' ? '👨' : userInfo.gender === 'female' ? '👩' : userInfo.gender === 'group' ? '👥' : '🏳️‍🌈'}</span>
-          <span>{userInfo.gender}</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <span>👍 {userInfo.likes}</span>
-        </div>
-        {userInfo.isVip && (
-          <div className="flex items-center gap-2">
-            <span>💎 VIP</span>
-          </div>
-        )}
+      {/* ✅ معلومات الطرف الآخر */}
+      <div className="absolute top-5 left-5 bg-[rgba(0,0,0,0.6)] backdrop-blur-sm p-3 rounded-lg text-white space-y-1 text-sm">
+        <div>🌍 {userInfo.country} - {userInfo.city}</div>
+        <div>{userInfo.gender === 'male' ? '👨' : userInfo.gender === 'female' ? '👩' : userInfo.gender === 'group' ? '👥' : '❓'} {userInfo.gender}</div>
+        <div>👍 {userInfo.likes}</div>
+        {userInfo.isVip && <div>💎 VIP</div>}
       </div>
 
-      {/* شريط الأدوات */}
-      <div className="absolute bottom-5 left-1/2 -translate-x-1/2 bg-[rgba(0,0,0,0.7)] backdrop-blur-sm flex gap-3 rounded-xl p-2 text-white text-2xl z-50">
+      {/* ✅ شريط الأدوات */}
+      <div className="absolute bottom-5 left-1/2 -translate-x-1/2 bg-[rgba(0,0,0,0.7)] backdrop-blur-sm p-2 rounded-full flex gap-3 text-white text-xl">
         <button onClick={handlePrevious}>⏮️</button>
         <button onClick={handleNext}>⏭️</button>
         <button onClick={handleToggleCamera}>📷</button>
@@ -180,10 +167,10 @@ export default function ChatPage() {
         <button onClick={() => setIsChatOpen(!isChatOpen)}>💬</button>
       </div>
 
-      {/* دردشة نصية */}
+      {/* ✅ دردشة نصية */}
       {isChatOpen && (
         <motion.div
-          className="absolute top-5 right-5 w-[300px] h-[70%] bg-[rgba(0,0,0,0.7)] backdrop-blur-sm rounded-xl p-4 z-50"
+          className="absolute top-5 right-5 w-[300px] h-[70%] bg-[rgba(0,0,0,0.7)] backdrop-blur-md p-4 rounded-lg text-white"
           initial={{ opacity: 0, x: 100 }}
           animate={{ opacity: 1, x: 0 }}
           exit={{ opacity: 0, x: 100 }}

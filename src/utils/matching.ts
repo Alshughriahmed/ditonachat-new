@@ -1,6 +1,7 @@
 // File: src/utils/matching.ts
 
-export type Gender = 'male' | 'female' | 'couple' | 'gay' | 'other';
+export type Gender = 'male' | 'female' | 'couple' | 'group' | 'other';
+
 
 export interface User {
   isVip: boolean;
