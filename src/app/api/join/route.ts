@@ -20,7 +20,7 @@ interface QueueUser extends JoinRequest {
 
 const QUEUE_KEY = 'matching:queue';
 
-export async function POST(req: NextRequest) {
+const handler = async (req: NextRequest) => {
   try {
     const body = (await req.json()) as JoinRequest;
 
@@ -101,3 +101,5 @@ export async function POST(req: NextRequest) {
       const genderMatch =
         (partner.lookingFor === 'ALL' ||
           partner.lookingFor === currentUser.ge
+     
+      export { handler as POST };
