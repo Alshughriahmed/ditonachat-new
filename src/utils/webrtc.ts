@@ -1,12 +1,11 @@
 // src/utils/webrtc.ts
-import { Socket } from 'socket.io-client';
-
+import type { SocketType } from './socket';
 const ICE_SERVERS: RTCConfiguration = {
   iceServers: [
     { urls: 'stun:stun1.google.com:19302' },
     { urls: 'stun:stun2.google.com:19302' },
-    // TURN server (production): Add your TURN credentials here
-    // { urls: 'turn:your.turn.server:3478', username: 'user', credential: 'password' },
+    // TURN server: أضف بياناتك عند الإطلاق
+    // { urls: 'turn:your.turn.server:3478', username: 'user', credential: 'pass' }
   ],
 };
 
@@ -22,16 +21,15 @@ type StreamCallback = (stream: MediaStream) => void;
 type CandidateCallback = (candidate: RTCIceCandidateInit) => void;
 
 export class WebRTCManager {
-  private socket: Socket;
+  private socket: SocketType;
   private peerConnection: RTCPeerConnection | null = null;
   private localStream: MediaStream | null = null;
   private remoteStream: MediaStream | null = null;
 
-  constructor(socket: Socket) {
+  constructor(socket: SocketType) {
     this.socket = socket;
   }
 
-  // الدوال المتعلقة بالـ Streams
   setLocalStream(stream: MediaStream) {
     this.localStream = stream;
   }
@@ -39,22 +37,16 @@ export class WebRTCManager {
   getLocalStream(): MediaStream | null {
     return this.localStream;
   }
-  
+
   getRemoteStream(): MediaStream | null {
     return this.remoteStream;
   }
 
-  /**
-   * Initializes local media stream (camera + mic)
-   */
   async initLocalStream(): Promise<MediaStream> {
     this.localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
     return this.localStream;
   }
 
-  /**
-   * Starts sending an offer to the remote peer
-   */
   async sendOffer(
     to: string,
     onTrack: StreamCallback,
@@ -62,52 +54,38 @@ export class WebRTCManager {
   ): Promise<void> {
     this.peerConnection = this.createPeerConnection(onTrack, onIceCandidate);
 
-    if (!this.localStream) {
-      throw new Error('Local stream is not initialized.');
-    }
-
-    // Add all tracks from the local stream to the peer connection
+    if (!this.localStream) throw new Error('Local stream is not initialized.');
     this.localStream.getTracks().forEach(track => {
       this.peerConnection!.addTrack(track, this.localStream!);
     });
 
-    // Create and set the local offer
     const offer = await this.peerConnection.createOffer();
     await this.peerConnection.setLocalDescription(offer);
 
-    // Emit the offer to the remote peer via socket
     this.socket.emit('offer', { to, offer });
   }
 
-  /**
-   * Handles incoming offer and sends back answer
-   */
   async handleOffer(
-    data: SignalingPayload, // Expects { from, offer }
-    localStream: MediaStream, // Expects the local stream itself
+    data: SignalingPayload,
+    localStream: MediaStream,
     onTrack: StreamCallback,
     onIceCandidate: CandidateCallback
   ): Promise<void> {
     if (!data.offer || !data.from) throw new Error('Invalid offer payload.');
 
-    // Ensure localStream is set for this connection context
     this.localStream = localStream;
     this.peerConnection = this.createPeerConnection(onTrack, onIceCandidate);
 
-    // Add local stream tracks to the peer connection
     this.localStream.getTracks().forEach(track => {
       this.peerConnection!.addTrack(track, this.localStream!);
     });
 
     await this.peerConnection.setRemoteDescription(new RTCSessionDescription(data.offer));
-    await this.sendAnswer(data.from); // Use data.from as 'to' for the answer
+    await this.sendAnswer(data.from);
   }
 
-  /**
-   * Creates and sends answer to peer
-   */
   private async sendAnswer(to: string): Promise<void> {
-    if (!this.peerConnection) throw new Error('Peer connection is not initialized.');
+    if (!this.peerConnection) throw new Error('Peer connection not initialized.');
 
     const answer = await this.peerConnection.createAnswer();
     await this.peerConnection.setLocalDescription(answer);
@@ -115,28 +93,17 @@ export class WebRTCManager {
     this.socket.emit('answer', { to, answer });
   }
 
-  /**
-   * Handles incoming answer from peer
-   */
   async handleAnswer(data: SignalingPayload): Promise<void> {
-    if (!this.peerConnection || !data.answer) throw new Error('Invalid answer.');
-
+    if (!this.peerConnection || !data.answer) return;
     await this.peerConnection.setRemoteDescription(new RTCSessionDescription(data.answer));
   }
 
-  /**
-   * Sends ICE candidate to remote peer
-   */
   sendCandidate(to: string, candidate: RTCIceCandidateInit): void {
     this.socket.emit('candidate', { to, candidate });
   }
 
-  /**
-   * Handles incoming ICE candidate
-   */
   async handleCandidate(data: SignalingPayload): Promise<void> {
     if (!this.peerConnection || !data.candidate) return;
-
     try {
       await this.peerConnection.addIceCandidate(new RTCIceCandidate(data.candidate));
     } catch (error) {
@@ -144,9 +111,6 @@ export class WebRTCManager {
     }
   }
 
-  /**
-   * Creates a configured RTCPeerConnection
-   */
   private createPeerConnection(
     onTrack: StreamCallback,
     onIceCandidate: CandidateCallback
@@ -154,9 +118,7 @@ export class WebRTCManager {
     const pc = new RTCPeerConnection(ICE_SERVERS);
 
     pc.onicecandidate = (event) => {
-      if (event.candidate) {
-        onIceCandidate(event.candidate.toJSON());
-      }
+      if (event.candidate) onIceCandidate(event.candidate.toJSON());
     };
 
     pc.ontrack = (event) => {
@@ -169,7 +131,7 @@ export class WebRTCManager {
 
     pc.onconnectionstatechange = () => {
       console.log('[WebRTC] Connection state:', pc.connectionState);
-      if (pc.connectionState === 'disconnected' || pc.connectionState === 'failed') {
+      if (['disconnected', 'failed', 'closed'].includes(pc.connectionState)) {
         this.closeConnection();
       }
     };
@@ -177,25 +139,16 @@ export class WebRTCManager {
     return pc;
   }
 
-  /**
-   * Closes the current connection and resets everything
-   */
   closeConnection(): void {
     console.log('[WebRTC] Closing connection...');
-    if (this.peerConnection) {
-      this.peerConnection.close();
-      this.peerConnection = null;
-    }
+    this.peerConnection?.close();
+    this.peerConnection = null;
 
-    if (this.localStream) {
-      this.localStream.getTracks().forEach(track => track.stop());
-      this.localStream = null;
-    }
+    this.localStream?.getTracks().forEach(track => track.stop());
+    this.localStream = null;
 
-    if (this.remoteStream) {
-      this.remoteStream.getTracks().forEach(track => track.stop());
-      this.remoteStream = null;
-    }
+    this.remoteStream?.getTracks().forEach(track => track.stop());
+    this.remoteStream = null;
 
     this.socket.emit('leave');
   }

@@ -1,10 +1,10 @@
 'use client';
-
+import { SignalingPayload } from '@/utils/webrtc';
 import React, { useEffect, useRef, useState } from 'react';  // useCallback محذوف لأنه غير مستخدم
 import { motion, useMotionValue } from 'framer-motion';
 import { useGesture } from '@use-gesture/react';
 import { WebRTCManager } from '@/utils/webrtc';
-import socket from '@/utils/socket';
+import { socket } from '@/utils/socket';
 
 interface Message {
   text: string;
@@ -81,7 +81,7 @@ export default function ChatPage() {
       }
     })();
 
-    socket.on('offer', (data) => {
+    socket.on('offer', (data: SignalingPayload) => {
       if (!manager) return;
       manager.handleOffer(
         data,
@@ -96,8 +96,8 @@ export default function ChatPage() {
         }
       );
     });
-    socket.on('answer', (data) => webrtc?.handleAnswer(data));
-    socket.on('candidate', (data) => webrtc?.handleCandidate(data));
+    socket.on('answer', (data: SignalingPayload) => webrtc?.handleAnswer(data));
+    socket.on('candidate', (data: SignalingPayload) => webrtc?.handleCandidate(data));
     socket.on('leave', () => {
       webrtc?.closeConnection?.();
       setRemotePeerId(null);
@@ -141,7 +141,8 @@ export default function ChatPage() {
 
   return (
     <main
-      className="relative w-full h-screen bg-black overflow-hidden"
+      className="relative w-full h-screen bg-black
+ overflow-hidden"
       {...bindGestures()}
     >
       <video

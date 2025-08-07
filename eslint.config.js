@@ -1,18 +1,23 @@
-import { FlatCompat } from '@eslint/eslintrc';
-const compat = new FlatCompat();
+const pluginTs = require('@typescript-eslint/eslint-plugin');
+const parserTs = require('@typescript-eslint/parser');
 
-export default [
-  // تجاهل مجلدات البناء والأنواع المولّدة
+module.exports = [
   {
-    ignores: ['.next/**', 'out/**', 'node_modules/**'],
-  },
-  // قواعد Next.js الأساسية
-  ...compat.extends('next/core-web-vitals'),
-  // قواعد TypeScript الموصى بها
-  ...compat.extends('plugin:@typescript-eslint/recommended'),
-  {
+    ignores: ['node_modules', '.next', 'dist'],
+    files: ['src/**/*.{ts,tsx}'],
+    languageOptions: {
+      parser: parserTs,
+      parserOptions: {
+        ecmaVersion: 'latest',
+        sourceType: 'module',
+        project: './tsconfig.json',
+      },
+    },
+    plugins: {
+      '@typescript-eslint': pluginTs,
+    },
     rules: {
-      // هنا يمكنك إضافة أو تعديل قواعد ESLint الخاصة بك
+      '@typescript-eslint/no-unused-vars': ['warn'],
     },
   },
 ];
