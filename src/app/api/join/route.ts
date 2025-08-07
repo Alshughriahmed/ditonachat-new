@@ -70,8 +70,7 @@ interface QueueUser extends JoinRequest {
 
 const QUEUE_KEY = 'matching:queue';
 
-export async function POST(req: NextRequest) {
-  try {
+const handler = async (req: NextRequest) => {
     const body = (await req.json()) as JoinRequest;
 
     // 1️⃣ إعداد المستخدم مع أولوية
