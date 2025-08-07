@@ -2,9 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { useUser } from "@/context/UserContext";
-import { Gender } from "@/types/Gender";
-import { matchUsers, UserPreferences } from "@/utils/matching";
-
+import { matchUsers } from '@/utils/matching';
+import { UserPreferences } from "@/types/user";
+import { User, Gender } from '@/types/user';
 // 🧠 خطاف الانضمام الذكي للطابور
 export const useSmartJoin = () => {
   const { user } = useUser();
