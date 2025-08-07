@@ -46,9 +46,11 @@ export async function POST(req: NextRequest) {
     const matchIndex = queue.findIndex((partner) => {
       if (partner.userId === currentUser.userId) return false;
 
-      const genderMatch =
-        (partner.lookingFor === 'ALL' ||
-          partner.lookingFor === currentUser.ge
+    const genderMatch =
+     (partner.lookingFor === 'ALL' ||
+       partner.lookingFor === currentUser.gender) &&
+     (currentUser.lookingFor === 'ALL' ||
+       currentUser.lookingFor === partner.gender);
 
 interface JoinRequest {
   userId: string;
