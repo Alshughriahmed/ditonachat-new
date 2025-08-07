@@ -14,6 +14,8 @@ import { Gender } from "@/types/Gender";
 // واجهة User لتحديد خصائص المستخدم
 interface User {
   id: string;
+  isVip: boolean;
+  isBoosted: boolean;
   email?: string;
   displayName?: string;
   profileMessage?: string;
