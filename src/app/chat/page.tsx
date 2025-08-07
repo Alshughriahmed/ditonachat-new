@@ -1,7 +1,6 @@
-
 'use client';
 
-import React, { useEffect, useRef, useState, useCallback } from 'react';
+import React, { useEffect, useRef, useState } from 'react';  // useCallback محذوف لأنه غير مستخدم
 import { motion, useMotionValue } from 'framer-motion';
 import { useGesture } from '@use-gesture/react';
 import { WebRTCManager } from '@/utils/webrtc';
@@ -25,8 +24,7 @@ export default function ChatPage() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputText, setInputText] = useState('');
   const [webrtc, setWebrtc] = useState<WebRTCManager | null>(null);
-  const [remotePeerId, setRemotePeerId] = useState<string | null>(null);
-
+  const [_remotePeerId, setRemotePeerId] = useState<string | null>(null);
   const [userInfo] = useState<UserInfo>({
     country: 'السعودية',
     city: 'جدة',
@@ -41,11 +39,14 @@ export default function ChatPage() {
   const y = useMotionValue(0);
   const scale = useMotionValue(1);
 
-  // useEffect الرئيسي
   useEffect(() => {
-    // التحقق من وجود نافذة المتصفح قبل الوصول إلى navigator
-    if (typeof window === 'undefined' || !window.navigator || !window.navigator.mediaDevices) {
-      console.error("Browser APIs (navigator.mediaDevices) are not available.");
+    if (
+      typeof window === 'undefined' ||
+      !window.navigator?.mediaDevices?.getUserMedia
+    ) {
+      console.error(
+        'Browser APIs (navigator.mediaDevices) are not available.'
+      );
       return;
     }
 
@@ -53,60 +54,50 @@ export default function ChatPage() {
     const manager = new WebRTCManager(socket);
     setWebrtc(manager);
 
-    const getLocalStream = async () => {
+    (async () => {
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: true,
+        });
         if (localVideoRef.current) {
           localVideoRef.current.srcObject = stream;
         }
-
-        // استخدام manager لإرسال العرض بعد الحصول على stream المحلي
         manager.setLocalStream(stream);
-
-        // هنا يمكنك تحديد الـ Peer ID الفعلي بدلاً من 'REMOTE_PEER_ID'
         const peerId = 'REMOTE_PEER_ID';
         setRemotePeerId(peerId);
-
         manager.sendOffer(
           peerId,
-          (remoteStream: MediaStream) => {
-            if (remoteVideoRef.current && remoteStream instanceof MediaStream) {
+          (remoteStream) => {
+            if (remoteVideoRef.current) {
               remoteVideoRef.current.srcObject = remoteStream;
             }
           },
-          (candidate: RTCIceCandidateInit) => {
-            if (peerId) {
-              manager.sendCandidate(peerId, candidate);
-            }
+          (candidate) => {
+            manager.sendCandidate(peerId, candidate);
           }
         );
       } catch (err) {
-        console.error("🎥 Media error:", err);
+        console.error('🎥 Media error:', err);
       }
-    };
-
-    getLocalStream();
+    })();
 
     socket.on('offer', (data) => {
-      // التأكد من أن manager موجود قبل استخدامه
-      if (!webrtc) return;
-      webrtc.handleOffer(
+      if (!manager) return;
+      manager.handleOffer(
         data,
-        webrtc.getLocalStream()!,
-        (remoteStream: MediaStream) => {
+        manager.getLocalStream()!,
+        (remoteStream) => {
           if (remoteVideoRef.current) {
             remoteVideoRef.current.srcObject = remoteStream;
           }
         },
-        (candidate: RTCIceCandidateInit) => {
-          webrtc.sendCandidate(data.to, candidate);
+        (candidate) => {
+          manager.sendCandidate(data.to, candidate);
         }
       );
     });
-
-    socket.on('answer', data => webrtc?.handleAnswer(data));
-    socket.on('candidate', data => webrtc?.handleCandidate(data));
-
+    socket.on('answer', (data) => webrtc?.handleAnswer(data));
+    socket.on('candidate', (data) => webrtc?.handleCandidate(data));
     socket.on('leave', () => {
       webrtc?.closeConnection?.();
       setRemotePeerId(null);
@@ -117,7 +108,7 @@ export default function ChatPage() {
       webrtc?.closeConnection?.();
       socket.disconnect();
     };
-  }, [webrtc]);
+  }, []);
 
   const bindGestures = useGesture({
     onDrag: ({ swipe }) => {
@@ -128,13 +119,17 @@ export default function ChatPage() {
   });
 
   const handleSendMessage = () => {
-    if (inputText.trim()) {
-      setMessages([...messages, { text: inputText, isUser: true }]);
-      setInputText('');
-      setTimeout(() => {
-        setMessages(prev => [...prev, { text: '👋 مرحباً بك!', isUser: false }]);
-      }, 1000);
-    }
+    if (!inputText.trim()) return;
+    setMessages((prev) => [...prev, { text: inputText, isUser: true }]);
+    setInputText('');
+    setTimeout(
+      () =>
+        setMessages((prev) => [
+          ...prev,
+          { text: '👋 مرحباً بك!', isUser: false },
+        ]),
+      1000
+    );
   };
 
   const handlePrevious = () => webrtc?.closeConnection?.();
@@ -145,19 +140,20 @@ export default function ChatPage() {
   const handleEndChat = () => webrtc?.closeConnection?.();
 
   return (
-    <main className="relative w-full h-screen bg-black overflow-hidden" {...bindGestures()}>
-      {/* فيديو الطرف الآخر */}
+    <main
+      className="relative w-full h-screen bg-black overflow-hidden"
+      {...bindGestures()}
+    >
       <video
         ref={remoteVideoRef}
         autoPlay
         className="absolute inset-0 w-full h-full object-cover"
       />
 
-      {/* ✅ المعاينة الذاتية */}
       <motion.div
-        className="absolute top-4 right-4 z-30 w-36 h-36 rounded-full overflow-hidden
-                   border-4 border-pink-500 shadow-lg"
-        drag dragMomentum={false}
+        className="absolute top-4 right-4 z-30 w-36 h-36 rounded-full overflow-hidden border-4 border-pink-500 shadow-lg"
+        drag
+        dragMomentum={false}
         style={{ touchAction: 'none' }}
       >
         <video
@@ -169,18 +165,14 @@ export default function ChatPage() {
         />
       </motion.div>
 
-      {/* ✅ معلومات الطرف الآخر */}
-      <div className="absolute top-5 left-5 bg-[rgba(0,0,0,0.6)] backdrop-blur-md text-white p-3 rounded-lg flex flex-col gap-1 z-20">
+      <div className="absolute top-5 left-5 bg-[rgba(0,0,0,0.6)] backdrop-blur px-3 py-2 rounded-lg text-white space-y-1">
         <div>🌍 {userInfo.country} - {userInfo.city}</div>
-        <div>{userInfo.gender === 'male' ? '👨' : userInfo.gender === 'female' ? '👩' : '👤'}</div>
+        <div>{userInfo.gender === 'male' ? '👨' : userInfo.gender === 'female' ? '👩' : '👥'}</div>
         <div>👍 {userInfo.likes}</div>
         {userInfo.isVip && <div>💎 VIP</div>}
       </div>
 
-      {/* ✅ شريط الأدوات */}
-      <div className="absolute bottom-4 left-1/2 z-20 flex space-x-4
-                   bg-black bg-opacity-60 backdrop-blur-md p-2 rounded-full
-                   transform -translate-x-1/2">
+      <div className="absolute bottom-4 left-1/2 z-20 flex space-x-4 bg-black bg-opacity-60 backdrop-blur-md p-2 rounded-full transform -translate-x-1/2">
         <button onClick={handlePrevious}>⏮️</button>
         <button onClick={handleNext}>⏭️</button>
         <button onClick={handleToggleCamera}>📷</button>
@@ -190,19 +182,17 @@ export default function ChatPage() {
         <button onClick={() => setIsChatOpen(!isChatOpen)}>💬</button>
       </div>
 
-      {/* ✅ دردشة نصية */}
       {isChatOpen && (
         <motion.div
-          className="absolute top-20 left-4 z-20 w-80 max-h-96 overflow-y-auto
-               bg-black bg-opacity-70 backdrop-blur-sm p-4 rounded-lg"
+          className="absolute top-20 left-4 z-20 w-80 max-h-96 overflow-y-auto bg-black bg-opacity-70 backdrop-blur-sm p-4 rounded-lg"
           initial={{ opacity: 0, x: -100 }}
           animate={{ opacity: 1, x: 0 }}
           exit={{ opacity: 0, x: -100 }}
         >
           <div className="flex flex-col h-[calc(100%-60px)] overflow-y-auto">
-            {messages.map((msg, index) => (
+            {messages.map((msg, i) => (
               <div
-                key={index}
+                key={i}
                 className={`${
                   msg.isUser
                     ? 'bg-blue-400/30 text-blue-200 ml-auto'
@@ -218,7 +208,7 @@ export default function ChatPage() {
               type="text"
               value={inputText}
               onChange={(e) => setInputText(e.target.value)}
-              className="flex-1 bg-gray-800/50 text-white rounded-xl px-3 py-2 outline-none"
+              className="flex-1 bg-gray-800/50 text-white rounded-xl px-3 py-2"
               placeholder="اكتب رسالتك..."
             />
             <button onClick={handleSendMessage}>✉️</button>
@@ -228,5 +218,3 @@ export default function ChatPage() {
     </main>
   );
 }
-
-
