@@ -1,8 +1,6 @@
 import { NextAuthOptions } from 'next-auth';
 import type { DefaultSession } from 'next-auth';
 import GoogleProvider from 'next-auth/providers/google';
-import FacebookProvider from 'next-auth/providers/facebook';
-import EmailProvider from 'next-auth/providers/email';
 import { PrismaAdapter } from '@auth/prisma-adapter';
 import { prisma } from '@/lib/db/prisma';
 
