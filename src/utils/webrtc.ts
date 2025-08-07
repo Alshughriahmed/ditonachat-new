@@ -1,20 +1,3 @@
-<<<<<<< HEAD
-class WebRTCClient {
-  constructor() {
-    // constructor logic
-  }
-
-  async getRemoteStream() {
-    // Placeholder for getRemoteStream logic
-    console.log("getRemoteStream called");
-    return null;
-  }
-}
-
-export default WebRTCClient;
-
-
-=======
 // src/utils/webrtc.ts
 import { Socket } from 'socket.io-client';
 
@@ -28,8 +11,8 @@ const ICE_SERVERS: RTCConfiguration = {
 };
 
 export interface SignalingPayload {
-  to: string; // Make 'to' optional for incoming signals where 'from' is used
-  from?: string; // Add 'from' for incoming signals
+  to: string;
+  from?: string;
   answer?: RTCSessionDescriptionInit;
   offer?: RTCSessionDescriptionInit;
   candidate?: RTCIceCandidateInit;
@@ -48,20 +31,19 @@ export class WebRTCManager {
     this.socket = socket;
   }
 
-  // ضع الدالة setLocalStream هنا (خارج الـ constructor)
+  // الدوال المتعلقة بالـ Streams
   setLocalStream(stream: MediaStream) {
     this.localStream = stream;
   }
 
-  // هذه الدالة صحيحة في مكانها
-  getLocalStream() {
+  getLocalStream(): MediaStream | null {
     return this.localStream;
   }
-}
+  
   getRemoteStream(): MediaStream | null {
     return this.remoteStream;
   }
-}
+
   /**
    * Initializes local media stream (camera + mic)
    */
@@ -109,9 +91,9 @@ export class WebRTCManager {
     if (!data.offer || !data.from) throw new Error('Invalid offer payload.');
 
     // Ensure localStream is set for this connection context
-    this.localStream = localStream; 
+    this.localStream = localStream;
     this.peerConnection = this.createPeerConnection(onTrack, onIceCandidate);
-       
+
     // Add local stream tracks to the peer connection
     this.localStream.getTracks().forEach(track => {
       this.peerConnection!.addTrack(track, this.localStream!);
@@ -188,7 +170,7 @@ export class WebRTCManager {
     pc.onconnectionstatechange = () => {
       console.log('[WebRTC] Connection state:', pc.connectionState);
       if (pc.connectionState === 'disconnected' || pc.connectionState === 'failed') {
-        this.closeConnection(); // Call the public method
+        this.closeConnection();
       }
     };
 
@@ -218,6 +200,3 @@ export class WebRTCManager {
     this.socket.emit('leave');
   }
 }
-
-export default WebRTCManager;
->>>>>>> a2a2ef57a9f680569a8c694591083e6cd89a94b9
