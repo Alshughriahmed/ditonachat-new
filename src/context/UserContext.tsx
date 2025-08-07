@@ -14,12 +14,15 @@ import { Gender } from "@/types/Gender";
 // واجهة User لتحديد خصائص المستخدم
 interface User {
   id: string;
+  name: string;
+  gender: Gender;
+  lookingFor?: string;
   isVip: boolean;
   isBoosted: boolean;
+  boostActive?: boolean;
   email?: string;
   displayName?: string;
   profileMessage?: string;
-  gender: Gender;
   country?: string;
   subscriptionStatus: "FREE" | "BOOST" | "WEEKLY" | "YEARLY";
   subscriptionExpiresAt?: string | Date;
