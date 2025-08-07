@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 import { NextRequest, NextResponse } from 'next/server';
 import { redis } from '@/lib/redis';
 import { v4 as uuidv4 } from 'uuid';
