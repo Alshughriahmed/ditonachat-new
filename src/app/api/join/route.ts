@@ -100,5 +100,5 @@ const handler = async (req: NextRequest) => {
       const genderMatch =
         (partner.lookingFor === 'ALL' ||
           partner.lookingFor === currentUser.ge
-     
+     };
       export { handler as POST };
