@@ -4,7 +4,7 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { motion, useMotionValue } from 'framer-motion';
 import { useGesture } from '@use-gesture/react';
-import WebRTCManager from '@/utils/webrtc';
+import { WebRTCManager } from '@/utils/webrtc';
 import socket from '@/utils/socket';
 
 interface Message {

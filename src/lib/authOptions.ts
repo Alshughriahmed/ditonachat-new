@@ -30,15 +30,13 @@ export const authOptions: NextAuthOptions = {
     }),
   ],
   session: {
-    strategy: "jwt",
-  },
-  callbacks: {
-    async session({ session, user, token }) {
-      if (user) {
-        session.user.id = user.id;
-      }
-      return session;
-    },
+// ...
+jwt: async ({ user }) => {
+    if (user) {
+      return { id: user.id, email: user.email, name: user.name };
+    }
+    return {};
+},
   },
   pages: {
     signIn: '/auth/signin',
