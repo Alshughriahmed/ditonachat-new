@@ -13,10 +13,12 @@
     "@prisma/client": "^5.10.2",
     "@upstash/redis": "^1.35.3",
     "@use-gesture/react": "^10.3.1",
+    "framer-motion": "^12.23.12",
     "next": "14.1.0",
     "next-auth": "^4.24.11",
     "react": "^18",
     "react-dom": "^18",
+    "socket.io-client": "^4.8.1",
     "stripe": "^18.4.0",
     "uuid": "^11.1.0"
   },
