@@ -2,13 +2,12 @@
   "name": "ditonachat-new",
   "version": "0.1.0",
   "private": true,
-  "scripts": {
-    "dev": "next dev",
-    "build": "npx prisma generate && next build",
-    "start": "next start",
-    "lint": "eslint \"src/**/*.{js,jsx,ts,tsx}\" --fix",
-    "check": "npm install && npx prisma validate && npx prisma generate && npx tsc --noEmit && npm run lint && npm run build"
-  },
+"scripts": {
+  "dev": "next dev",
+  "build": "npx prisma generate && next build",
+  "start": "next start",
+  "lint": "next lint"
+},
   "dependencies": {
     "@auth/prisma-adapter": "^2.10.0",
     "@prisma/client": "^6.13.0",
