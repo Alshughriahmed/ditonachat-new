@@ -23,6 +23,7 @@
     "uuid": "^11.1.0"
   },
   "devDependencies": {
+    "@types/react": "^19.1.9",
     "eslint": "^8",
     "eslint-config-next": "14.1.0",
     "prisma": "^5.10.2",
