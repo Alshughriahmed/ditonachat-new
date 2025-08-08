@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "build": "npx prisma generate && next build",
+    "build": "npx prisma generate && next build",
     "start": "next start",
     "lint": "eslint \"src/**/*.{js,jsx,ts,tsx}\" --fix",
     "check": "npm install && npx prisma validate && npx prisma generate && npx tsc --noEmit && npm run lint && npm run build"
